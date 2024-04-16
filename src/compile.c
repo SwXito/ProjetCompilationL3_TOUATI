@@ -172,10 +172,16 @@ static void calc_to_asm(FILE * file){
     fprintf(file, "pop rax\n");
 }
 
+/**
+ * @brief Performs addition or subtraction operation on the operands of a node and writes the result to a file.
+ * @param root The node whose operands are to be operated on.
+ * @param file The file to write the assembly instructions to.
+ * @return The result of the addition or subtraction operation.
+ */
 static int addsub_calc(Node *root, FILE * file){
     int left_op = do_calc(root->firstChild, file);
     int right_op = do_calc(root->firstChild->nextSibling, file);
-    calc_to_asm(file);
+    calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '+'){
         fprintf(file, "add rax, rcx\n");
         fprintf(file, "push rax\n");
@@ -188,10 +194,16 @@ static int addsub_calc(Node *root, FILE * file){
     }
 }
 
+/**
+ * @brief Performs multiplication or division operation on the operands of a node and writes the result to a file.
+ * @param root The node whose operands are to be operated on.
+ * @param file The file to write the assembly instructions to.
+ * @return The result of the multiplication or division operation.
+ */
 static int divstar_calc(Node *root, FILE * file){
     int left_op = do_calc(root->firstChild, file);
     int right_op = do_calc(root->firstChild->nextSibling, file);
-    calc_to_asm(file);
+    calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '*'){
         fprintf(file, "imul rax, rcx\n");
         fprintf(file, "push rax\n");
@@ -205,6 +217,12 @@ static int divstar_calc(Node *root, FILE * file){
     }
 }
 
+/**
+ * @brief Writes the value of a node to a file as an assembly instruction.
+ * @param root The node whose value is to be written.
+ * @param file The file to write the assembly instruction to.
+ * @return The value of the node.
+ */
 static int num_calc(Node *root, FILE * file){
     fprintf(file, "mov rax, %d\n", root->num);
     fprintf(file, "push rax\n");
@@ -256,38 +274,60 @@ void free_table(Table *t){
     }
 }
 
+/**
+ * @brief Frees the memory allocated for a symbol table.
+ * @param t The symbol table to free.
+ */
 void free_symbols_table(SymbolsTable *t){
-    free_table(t->first);
-    free(t);
+    free_table(t->first); ///< Free the first table in the symbol table.
+    free(t); ///< Free the symbol table itself.
 }
 
+/**
+ * @brief Frees the memory allocated for multiple symbol tables.
+ * @param tables The array of symbol tables to free.
+ * @param length The number of symbol tables in the array.
+ */
 void free_tables(SymbolsTable** tables, int length){
     for(int i = 0; i < length; ++i){
-        free_symbols_table(tables[i * 2]);
-        free_symbols_table(tables[i * 2 + 1]);
+        free_symbols_table(tables[i * 2]); ///< Free the symbol table at index i * 2.
+        free_symbols_table(tables[i * 2 + 1]); ///< Free the symbol table at index i * 2 + 1.
     }
-    free(tables);
+    free(tables); ///< Free the array of symbol tables.
 }
 
+/**
+ * @brief Prints a table.
+ * @param t The table to print.
+ */
 void print_table(Table *t){
     if(t){
-        printf("ident: %s Deplct : %d, type : %d\n", t->var.ident, t->var.deplct, t->var.is_int);
-        print_table(t->next);
+        printf("ident: %s Deplct : %d, type : %d\n", t->var.ident, t->var.deplct, t->var.is_int); ///< Print the identifier, displacement, and type of the variable in the table.
+        print_table(t->next); ///< Recursively print the next table.
     }
 }
 
+/**
+ * @brief Prints the global variables in a symbol table.
+ * @param t The symbol table to print from.
+ */
 void print_global_vars(SymbolsTable *t){
-    printf("\nGlobal vars:\n\n");
-    print_table(t->first);
+    printf("\nGlobal vars:\n\n"); ///< Print a header for the global variables.
+    print_table(t->first); ///< Print the first table in the symbol table.
 }
 
+/**
+ * @brief Prints the declared functions in an array of symbol tables.
+ * @param t The array of symbol tables to print from.
+ * @param count The number of symbol tables in the array.
+ */
 void print_decl_functions(SymbolsTable **t, int count){
-    printf("\nFunctions:\n");
+    printf("\nFunctions:\n"); ///< Print a header for the functions.
     for(int i = 0; i < count; ++i){
-        printf("\nFunction %d :\n", i+1);
-        printf("\nParameters :\n");
-        print_table(t[i * 2]->first);
-        printf("\nVariables :\n");
-        print_table(t[i * 2 + 1]->first);
+        printf("\nFunction %d :\n", i+1); ///< Print the function number.
+        printf("\nParameters :\n"); ///< Print a header for the parameters.
+        print_table(t[i * 2]->first); ///< Print the first table in the symbol table at index i * 2.
+        printf("\nVariables :\n"); ///< Print a header for the variables.
+        print_table(t[i * 2 + 1]->first); ///< Print the first table in the symbol table at index i * 2 + 1.
     }
 }
