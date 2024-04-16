@@ -1,0 +1,6 @@
+int main(int argc, char toto, int ok, char best, char tab[], int okidoki[], int adc, char supp){
+    if(ok < argc){
+        return 1;
+    }
+    return 0;
+}

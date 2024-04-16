@@ -1,0 +1,4 @@
+int main(void){
+    a = !mdrfares(1+2);
+    return 1;
+}
