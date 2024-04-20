@@ -49,7 +49,9 @@ typedef struct{
   Table* first;     ///< Pointer to the first table.
 }SymbolsTable;
 
-int check(SymbolsTable t, char *s); ///< Function to check if a symbol exists in the table.
+int check_in_table(SymbolsTable t, char *s); ///< Function to check_in_table if a symbol exists in the table.
+
+void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count, Node *root); ///< Function to check_in_table if a symbol exists in the table of declared functions.
 
 SymbolsTable* creatSymbolsTable(); ///< Function to create a new symbol table.
 
@@ -57,15 +59,15 @@ void fill_table_vars(SymbolsTable* t, Node *root); ///< Function to fill the tab
 
 void fill_table_fcts(SymbolsTable **t, Node *root, int *count); ///< Function to fill the table with functions.
 
-SymbolsTable* fill_func_parameters_table(Node *root, int *count); ///< Function to fill the table with function parameters.
+SymbolsTable* fill_func_parameters_table(Node *root); ///< Function to fill the table with function parameters.
 
 void fill_global_vars(SymbolsTable* t); ///< Function to fill the table with global variables.
 
 SymbolsTable** fill_decl_functions(int *count); ///< Function to fill the table with declared functions.
 
-void in_depth_course(Node * node, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), SymbolsTable *t, FILE * file); ///< Function to traverse the tree in depth.
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), SymbolsTable *t, FILE * file); ///< Function to traverse the tree in depth.
 
-void in_width_course(Node * node, void (*func)(SymbolsTable **, Node *, int *), SymbolsTable **t, int *count); ///< Function to traverse the tree in width.
+void in_width_course(Node * root, void (*func)(SymbolsTable **, Node *, int *), SymbolsTable **t, int *count); ///< Function to traverse the tree in width.
 
 void free_table(Table *t); ///< Function to free the memory allocated for the table.
 

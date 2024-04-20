@@ -3,8 +3,8 @@
  * @brief Header file for build functions.
  */
 
-#ifndef __build__
-#define __build__
+#ifndef BUILD_H
+#define BUILD_H
 
 #include "compile.h"
 

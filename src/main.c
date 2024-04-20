@@ -24,6 +24,8 @@ int main(int argc, char *argv[]){
     print_global_vars(global_vars);
     print_decl_functions(decl_functions, count);
 
+    check_decl(global_vars, decl_functions, count, node->firstChild->nextSibling);
+
     deleteTree(node);
     free_symbols_table(global_vars);
     free_tables(decl_functions, count);

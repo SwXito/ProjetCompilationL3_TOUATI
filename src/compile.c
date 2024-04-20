@@ -2,15 +2,48 @@
 
 /**
  * @brief Checks if a symbol exists in the symbol table.
- * @param t The symbol table to check.
- * @param s The symbol to check for.
+ * @param t The symbol table to check_in_table.
+ * @param s The symbol to check_in_table for.
  * @return 1 if the symbol exists, 0 otherwise.
  */
-int check(SymbolsTable t, char *s){
+int check_in_table(SymbolsTable t, char *s){
     for(Table *current = t.first; current; current = current->next)
         if (strcmp(current->var.ident, s) == 0)
             return 1;
     return 0;
+}
+
+/**
+ * @brief Checks if a variable is declared in the global variables or declared functions.
+ *
+ * This function traverses the abstract syntax tree (AST) rooted at 'root'. If a node with label 'Variable' is found,
+ * it checks if the variable is declared in the global variables or in any of the declared functions. If the variable
+ * is not declared, an error message is printed to stderr.
+ *
+ * The function is recursive and applies the same check to the first child and next sibling of 'root'.
+ *
+ * @param global_vars A pointer to the symbol table of global variables.
+ * @param decl_functions A pointer to an array of symbol tables for declared functions. Each function has two symbol tables,
+ * one for parameters and one for local variables, stored consecutively in the array.
+ * @param count The number of declared functions. This is used to iterate over 'decl_functions'.
+ * @param root A pointer to the root of the AST to check.
+ */
+void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count, Node *root){
+    if(root) {
+        if (root->label == Variable) {
+            int is_declared = 0;
+            char *s = root->firstChild->ident;
+            for (int i = 0; i < count; ++i)
+                if (check_in_table(*decl_functions[i * 2], s))
+                    is_declared = 1;
+            if (check_in_table(*global_vars, s))
+                is_declared = 1;
+            if (!is_declared)
+                fprintf(stderr, "Error: variable %s is not declared\n", s);
+        }
+        check_decl(global_vars, decl_functions, count, root->firstChild);
+        check_decl(global_vars, decl_functions, count, root->nextSibling);
+    }
 }
 
 /**
@@ -26,7 +59,7 @@ SymbolsTable* creatSymbolsTable(){
 
 /**
  * @brief Checks the type of a given identifier.
- * @param type The identifier to check.
+ * @param type The identifier to check_in_table.
  * @return 0 if the type is "char", 1 if the type is "int", -1 otherwise.
  */
 static int check_type(char * type){
@@ -44,7 +77,7 @@ static int check_type(char * type){
  * @param type The type of the node.
  */
 static void add_to_table(SymbolsTable *t, Node *root, char * type){
-    if(!check(*t, root->ident)){
+    if(!check_in_table(*t, root->ident)){
         Table *table = (Table*) try(malloc(sizeof(Table)), NULL);
 
         table->var.ident = strdup(root->ident);
@@ -87,7 +120,7 @@ void fill_table_fcts(SymbolsTable **t, Node *root, int *count){
         if(!strcmp(tmp->firstChild->nextSibling->ident, "main"))
             build_minimal_asm(tmp);
         SymbolsTable *new_table = creatSymbolsTable();
-        t[(*count) * 2] = fill_func_parameters_table(tmp, count);
+        t[(*count) * 2] = fill_func_parameters_table(tmp);
         fill_table_vars(new_table, tmp->firstChild->nextSibling->nextSibling->nextSibling->firstChild);
         t[(*count) * 2 + 1] = new_table;
         (*count)++;
@@ -100,7 +133,7 @@ void fill_table_fcts(SymbolsTable **t, Node *root, int *count){
  * @param count A pointer to the count of function parameters.
  * @return A pointer to the filled symbol table.
  */
-SymbolsTable* fill_func_parameters_table(Node *root, int *count){
+SymbolsTable* fill_func_parameters_table(Node *root){
     SymbolsTable* res = creatSymbolsTable();
     in_depth_course(root->firstChild->nextSibling->nextSibling->firstChild, NULL, fill_table_vars, res, NULL);
     return res;
@@ -124,7 +157,7 @@ SymbolsTable** fill_decl_functions(int *count){
  */
 void fill_global_vars(SymbolsTable* t){
     if(node->firstChild)
-        in_depth_course(node->firstChild->firstChild, NULL, fill_table_vars, t, NULL);
+        in_depth_course(node->firstChild->firstChild, NULL, fill_table_vars,  t, NULL);
 }
 
 /**
@@ -135,15 +168,15 @@ void fill_global_vars(SymbolsTable* t){
  * @param t The symbol table to fill.
  * @param file The file to write to.
  */
-void in_depth_course(Node * node, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), SymbolsTable *t, FILE * file){
-    if(node) {
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), SymbolsTable *t, FILE * file){
+    if(root) {
         if (calc)
-            if (calc(node, file))
+            if (calc(root, file))
                 return;
         if (table)
-            table(t, node);
-        in_depth_course(node->firstChild, calc, table, t, file);
-        in_depth_course(node->nextSibling, calc, table, t, file);
+            table(t, root);
+        in_depth_course(root->firstChild, calc, table, t, file);
+        in_depth_course(root->nextSibling, calc, table, t, file);
     }
 }
 
@@ -154,10 +187,10 @@ void in_depth_course(Node * node, int (*calc)(Node *, FILE *), void (*table)(Sym
  * @param t The symbol table to fill.
  * @param count A pointer to the count of nodes.
  */
-void in_width_course(Node * node, void (*func)(SymbolsTable **, Node *, int *), SymbolsTable **t, int *count){
-    if(node){
-        func(t, node, count);
-        in_width_course(node->nextSibling, func, t, count);
+void in_width_course(Node * root, void (*func)(SymbolsTable **, Node *, int *), SymbolsTable **t, int *count){
+    if(root){
+        func(t, root, count);
+        in_width_course(root->nextSibling, func, t, count);
     }
 }
 
