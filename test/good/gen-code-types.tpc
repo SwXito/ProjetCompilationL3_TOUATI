@@ -11,8 +11,6 @@ int main(void)  {
    quotient=24/12;
    letter='c';
    digit='0';
-   alasco=0;
-   fares=1;
    uppercase=letter+('A'-'a');
    reste=getint();
    putchar('\n');

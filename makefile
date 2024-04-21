@@ -15,8 +15,7 @@ obj:
 	mkdir -p obj
 
 
-
-$(BIN)/$(EXEC): $(OBJ)/tree.o $(OBJ)/$(EXEC).o $(OBJ)/$(EXEC).yy.o $(OBJ)/compile.o $(OBJ)/build.o $(OBJ)/main.o | bin
+$(BIN)/$(EXEC): $(OBJ)/tree.o $(OBJ)/$(EXEC).o $(OBJ)/$(EXEC).yy.o $(OBJ)/compile.o $(OBJ)/parse.o $(OBJ)/build.o $(OBJ)/main.o | bin
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 $(OBJ)/main.o: $(SRC)/main.c $(SRC)/build.h $(SRC)/compile.h | obj
@@ -34,13 +33,10 @@ $(OBJ)/$(EXEC).c $(OBJ)/$(EXEC).h $(OBJ)/$(EXEC).tab.h: $(SRC)/$(EXEC).y | obj
 $(OBJ)/$(EXEC).yy.c: $(SRC)/$(EXEC).lex | obj
 	flex -o $@ $(SRC)/$(EXEC).lex
 
-$(OBJ)/build.o: $(SRC)/build.c $(SRC)/build.h | obj
-	$(CC) -o $@ -c $< $(CFLAGS)
-
-$(OBJ)/compile.o: $(SRC)/compile.c $(SRC)/compile.h $(OBJ)/$(EXEC).o | obj
-	$(CC) -o $@ -c $< $(CFLAGS)
-
 $(OBJ)/tree.o: $(SRC)/tree.c $(SRC)/tree.h | obj
+	$(CC) -o $@ -c $< $(CFLAGS)
+
+$(OBJ)/%.o: $(SRC)/%.c $(SRC)/%.h | obj
 	$(CC) -o $@ -c $< $(CFLAGS)
 
 clean:

@@ -92,36 +92,3 @@ void printTree(Node *node) {
   }
   depth--;
 }
-
-void parse_args(int argc, char *argv[], Node * node){
-  int show_tree = 0;
-  int show_help = 0;
-  for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--help") == 0 || (strcmp(argv[i], "-h") == 0)) {
-            show_help = 1;
-        } else if (strcmp(argv[i], "--tree") == 0 || (strcmp(argv[i], "-t") == 0)){
-            show_tree = 1;
-        } else {
-            fprintf(stderr, "Unknown option or argument: %s\n", argv[i]);
-        }
-  }
-  if (show_tree) {
-    printTree(node);
-  }
-  if (show_help) {
-    help();
-  }
-}
-
-void help(){
-  printf("Usage: ./bin/tpcas [OPTIONS] < filename\n");
-  printf("Analyze and execute TPC programs.\n\n");
-  printf("For automatic tests.\n");
-  printf("Use command : ./tests.sh\n");
-  printf("You can also make your own test\n");
-  printf("Type a tpc program after using command: ./tpcas\n\n");
-  printf("Options:\n");
-  printf(" -h --help      Display this help message\n");
-  printf(" -t --tree      Display the abstract syntax tree\n");
-  printf("\n");
-}

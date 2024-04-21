@@ -84,7 +84,10 @@ static void add_to_table(SymbolsTable *t, Node *root, char * type){
         table->var.is_int = check_type(type);
 
         table->var.deplct = t->offset;
-        t->offset += 8;
+        if(table->var.is_int)
+            t->offset += 8;
+        else
+            t->offset += 1;
         table->next = t->first;
         t->first = table;
     }

@@ -1,5 +1,6 @@
 #include "compile.h"
 #include "build.h"
+#include "parse.h"
 
 extern Node *node;
 
@@ -15,14 +16,12 @@ int main(int argc, char *argv[]){
 
     int count = 0;
     int err = yyparse();
-    if(err == 0)
-        parse_args(argc, argv, node);
 
     fill_global_vars(global_vars);
     decl_functions = fill_decl_functions(&count);
 
-    print_global_vars(global_vars);
-    print_decl_functions(decl_functions, count);
+    if(err == 0)
+        parse_args(argc, argv, node, global_vars, decl_functions, count);
 
     check_decl(global_vars, decl_functions, count, node->firstChild->nextSibling);
 
