@@ -20,7 +20,8 @@ typedef enum {
   Global_vars,
   Functions,
   Not,
-  Variable
+  Variable,
+  Expression
 } label_t;
 
 typedef struct Node {

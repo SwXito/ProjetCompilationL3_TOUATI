@@ -22,7 +22,8 @@ static const char *StringFromLabel[] = {
   "global_vars",
   "Functions",
   "!",
-  "Variable"
+  "Variable",
+  "Expression"
 };
 
 Node *makeNode(label_t label) {

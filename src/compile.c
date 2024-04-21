@@ -32,7 +32,7 @@ void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int co
     if(root) {
         if (root->label == Variable) {
             int is_declared = 0;
-            char *s = root->firstChild->ident;
+            char *s = root->firstChild->label == Array ? root->firstChild->firstChild->ident : root->firstChild->ident;
             for (int i = 0; i < count; ++i)
                 if (check_in_table(*decl_functions[i * 2], s))
                     is_declared = 1;
