@@ -23,6 +23,8 @@ int main(int argc, char *argv[]){
     fill_global_vars(global_vars);
     decl_functions = fill_decl_functions(&count);
 
+    check_affectations(node, global_vars, decl_functions, count);
+
     if(err == 0)
         parse_args(argc, argv, node, global_vars, decl_functions, count);
 

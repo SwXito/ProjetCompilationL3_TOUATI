@@ -51,7 +51,11 @@ typedef struct{
 
 int check_in_table(SymbolsTable t, char *s); ///< Function to check_in_table if a symbol exists in the table.
 
+int find_type_in_sb(char *var, SymbolsTable *table);
+
 void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count, Node *root); ///< Function to check_in_table if a symbol exists in the table of declared functions.
+
+void check_affectations(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count);
 
 SymbolsTable* creatSymbolsTable(); ///< Function to create a new symbol table.
 

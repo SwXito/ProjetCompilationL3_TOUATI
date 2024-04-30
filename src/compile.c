@@ -1,5 +1,7 @@
 #include "compile.h"
 
+//REVOIR TABLE DES SYMBOLS DES FONCTIONS.VARIABLE
+
 /**
  * @brief Checks if a symbol exists in the symbol table.
  * @param t The symbol table to check_in_table.
@@ -11,6 +13,13 @@ int check_in_table(SymbolsTable t, char *s){
         if (strcmp(current->var.ident, s) == 0)
             return 1;
     return 0;
+}
+
+int find_type_in_sb(char *var, SymbolsTable *table){
+    for (Table *current = table->first; current; current = current->next)
+        if (strcmp(current->var.ident, var) == 0)
+            return current->var.is_int;
+    return -1;
 }
 
 /**
@@ -33,8 +42,8 @@ void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int co
         if (root->label == Variable) {
             int is_declared = 0;
             char *s = root->firstChild->label == Array ? root->firstChild->firstChild->ident : root->firstChild->ident;
-            for (int i = 0; i < count; ++i)
-                if (check_in_table(*decl_functions[i * 2], s))
+            for (int i = 0; i < count * 2; ++i)
+                if (check_in_table(*decl_functions[i], s))
                     is_declared = 1;
             if (check_in_table(*global_vars, s))
                 is_declared = 1;
@@ -70,38 +79,51 @@ static int check_type(char * type){
     return -1;
 }
 
-static int check_node_type(Node *root){
-    //TO DO
+static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
     switch(root->label){
         case Num:
             return 1;
         case Character:
             return 0;
-        case Variable:
-            //TO DO
+        case Variable:;
+            int type;
+            if((type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars)) == -1){
+                for(int i = 0; i < count * 2; ++i)
+                    if((type = find_type_in_sb(FIRSTCHILD(root)->ident, decl_functs[i])) >= 0)
+                        return type;
+            }
+            else
+                return type;
         default:
             return -1;
     }
 }
 
-static void check_affect(Node *root){
+static void check_affect(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
+    //TO CORRECT
     if(root){
-        if(check_node_type(FIRSTCHILD(root)) == 0) //If the firstChild is a char
-            switch(SECONDCHILD(root)->label){
+        if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, count) == 0){ //If the firstChild is a char
+            switch(SECONDCHILD(root)->label){ //Check if the second child is an int
                 case Expression:
                     if(calc_type(SECONDCHILD(root)))
                         fprintf(stderr, "Warning, You are putting a char in an int");
                     break;
-                //TO DOOOOOOOO
                 default:
-                    return;
+                    if(check_node_type(SECONDCHILD(root), global_vars, decl_functs, count))
+                        fprintf(stderr, "Warning, You are putting a char in an int");
             }
+        }
     }
 }
 
-void check_affectations(Node *root){
-    if(root->label == Eq)
-        check_affect(root);
+void check_affectations(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
+    if(root){
+        if(root->label == Eq)
+            check_affect(root, global_vars, decl_functs, count);
+        check_affectations(FIRSTCHILD(root), global_vars, decl_functs, count);
+        check_affectations(root->nextSibling, global_vars, decl_functs, count);
+    }
+
 }
 
 /**
@@ -245,6 +267,12 @@ static void calc_to_asm(FILE * file){
     fprintf(file, "pop rax\n");
 }
 
+static int calc_one_child(FILE *file){
+    fprintf(file, "mov rax, 0\n");
+    fprintf(file, "push rax\n");
+    return 0;
+}
+
 /**
  * @brief Performs addition or subtraction operation on the operands of a node and writes the result to a file.
  * @param root The node whose operands are to be operated on.
@@ -252,8 +280,15 @@ static void calc_to_asm(FILE * file){
  * @return The result of the addition or subtraction operation.
  */
 static int addsub_calc(Node *root, FILE * file){
-    int left_op = do_calc(root->firstChild, file);
-    int right_op = do_calc(root->firstChild->nextSibling, file);
+    int left_op, right_op;
+    if(root->firstChild->nextSibling){
+        left_op = do_calc(root->firstChild, file);
+        right_op = do_calc(root->firstChild->nextSibling, file);
+    }
+    else{
+        left_op = calc_one_child(file);
+        right_op = do_calc(root->firstChild, file);
+    }
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '+'){
         fprintf(file, "add rax, rcx\n");
@@ -444,7 +479,7 @@ void print_global_vars(SymbolsTable *t){
  * @param count The number of symbol tables in the array.
  */
 void print_decl_functions(SymbolsTable **t, int count){
-    printf("\nFunctions:\n"); ///< Print a header for the functions.
+    printf("Functions:\n"); ///< Print a header for the functions.
     for(int i = 0; i < count; ++i){
         printf("\nFunction %d :\n", i+1); ///< Print the function number.
         printf("\nParameters :\n"); ///< Print a header for the parameters.

@@ -1,4 +1,6 @@
 int main(void){
-    a[2] = 1 - 2 - 3 - 4;
+    char jsp;
+    char ok;
+    jsp = -10 * 20;
     return 'a';
 }

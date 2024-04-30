@@ -35,6 +35,7 @@ void parse_args(int argc, char *argv[], Node * node, SymbolsTable *global_vars, 
         help();
     if(show_tables){
         print_global_vars(global_vars);
+        printf("----------------------------------\n");
         print_decl_functions(decl_functions, count);
     }
 }
