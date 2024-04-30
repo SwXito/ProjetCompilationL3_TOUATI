@@ -272,14 +272,30 @@ static int num_calc(Node *root, FILE * file){
  * @return The result of the calculation.
  */
 int do_calc(Node *root, FILE * file){
-    if(root->label == Addsub)
-        return addsub_calc(root, file);
-    else if(root->label == Divstar)
-        return divstar_calc(root, file);
-    else if(root->label == Num)
-        return num_calc(root, file);
-    else
-        return 0;
+    switch(root->label){
+        case Return:
+            return -1;
+        case Array:
+            return -1;
+        case Addsub:
+            return addsub_calc(root, file);
+        case Divstar:
+            return divstar_calc(root, file);
+        case Num:
+            return num_calc(root, file);
+        default:
+            return 0;
+    }
+}
+
+static int max(int a, int b){
+    if(a >= b)
+        return a;
+    return b;
+}
+
+int calc_type(Node *root){
+    return 0;
 }
 
 /**

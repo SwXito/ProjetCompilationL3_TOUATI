@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.8.2.  */
+/* A Bison parser, made by GNU Bison 3.7.5.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
@@ -16,7 +16,7 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program.  If not, see <https://www.gnu.org/licenses/>.  */
+   along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /* As a special exception, you may create a larger work that contains
    part or all of the Bison parser skeleton and distribute that work
@@ -46,10 +46,10 @@
    USER NAME SPACE" below.  */
 
 /* Identify Bison output, and Bison version.  */
-#define YYBISON 30802
+#define YYBISON 30705
 
 /* Bison version string.  */
-#define YYBISON_VERSION "3.8.2"
+#define YYBISON_VERSION "3.7.5"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -316,18 +316,12 @@ typedef int yy_state_fast_t;
 # define YY_USE(E) /* empty */
 #endif
 
+#if defined __GNUC__ && ! defined __ICC && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
 /* Suppress an incorrect diagnostic about yylval being uninitialized.  */
-#if defined __GNUC__ && ! defined __ICC && 406 <= __GNUC__ * 100 + __GNUC_MINOR__
-# if __GNUC__ * 100 + __GNUC_MINOR__ < 407
-#  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                           \
-    _Pragma ("GCC diagnostic push")                                     \
-    _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")
-# else
-#  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                           \
+# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                            \
     _Pragma ("GCC diagnostic push")                                     \
     _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")              \
     _Pragma ("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
-# endif
 # define YY_IGNORE_MAYBE_UNINITIALIZED_END      \
     _Pragma ("GCC diagnostic pop")
 #else
@@ -543,7 +537,7 @@ static const yytype_int8 yytranslate[] =
 };
 
 #if YYDEBUG
-/* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
+  /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_int16 yyrline[] =
 {
        0,    31,    31,    42,    56,    61,    67,    71,    80,    91,
@@ -583,6 +577,17 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
+#ifdef YYPRINT
+/* YYTOKNUM[NUM] -- (External) token number corresponding to the
+   (internal) symbol number NUM (which must be that of a token).  */
+static const yytype_int16 yytoknum[] =
+{
+       0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
+     265,   266,   267,   268,   269,   270,   271,   272,    59,    44,
+      91,    93,    40,    41,   123,   125,    61,    33
+};
+#endif
+
 #define YYPACT_NINF (-92)
 
 #define yypact_value_is_default(Yyn) \
@@ -593,8 +598,8 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 #define yytable_value_is_error(Yyn) \
   0
 
-/* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
-   STATE-NUM.  */
+  /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
+     STATE-NUM.  */
 static const yytype_int8 yypact[] =
 {
      -92,     3,    66,   -92,    -4,    -1,    74,   -92,    -3,    32,
@@ -611,9 +616,9 @@ static const yytype_int8 yypact[] =
       90,   -92,   -92,   -92,   103,    33,   -92
 };
 
-/* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
-   Performed when YYTABLE does not specify something else to do.  Zero
-   means the default is an error.  */
+  /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
+     Performed when YYTABLE does not specify something else to do.  Zero
+     means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
        4,     0,     0,     1,     0,     0,     2,    10,     0,     6,
@@ -630,7 +635,7 @@ static const yytype_int8 yydefact[] =
       24,    26,    50,    27,    55,     0,    25
 };
 
-/* YYPGOTO[NTERM-NUM].  */
+  /* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
      -92,   -92,   102,   -92,   -92,   109,   -92,   100,   -92,   -92,
@@ -638,7 +643,7 @@ static const yytype_int8 yypgoto[] =
       45,   -92
 };
 
-/* YYDEFGOTO[NTERM-NUM].  */
+  /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
        0,     1,     2,    10,     6,     7,     8,    26,    27,    15,
@@ -646,9 +651,9 @@ static const yytype_int8 yydefgoto[] =
       90,    91
 };
 
-/* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
-   positive, shift that token.  If negative, reduce the rule whose
-   number is the opposite.  If YYTABLE_NINF, syntax error.  */
+  /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
+     positive, shift that token.  If negative, reduce the rule whose
+     number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
       47,    60,    77,     3,   110,   111,    39,    80,    40,    41,
@@ -687,8 +692,8 @@ static const yytype_int8 yycheck[] =
       -1,    -1,    -1,    -1,    -1,    -1,    -1,    -1,    44
 };
 
-/* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
-   state STATE-NUM.  */
+  /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
+     symbol of state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
        0,    29,    30,     0,     3,     4,    32,    33,    34,    14,
@@ -705,7 +710,7 @@ static const yytype_int8 yystos[] =
       39,    39,    23,    18,    40,     6,    39
 };
 
-/* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
+  /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
 static const yytype_int8 yyr1[] =
 {
        0,    28,    29,    30,    30,    31,    31,    31,    31,    32,
@@ -716,7 +721,7 @@ static const yytype_int8 yyr1[] =
       46,    47,    47,    48,    48,    49,    49
 };
 
-/* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
+  /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
 static const yytype_int8 yyr2[] =
 {
        0,     2,     2,     4,     0,     3,     1,     6,     4,     2,
@@ -736,7 +741,6 @@ enum { YYENOMEM = -2 };
 #define YYACCEPT        goto yyacceptlab
 #define YYABORT         goto yyabortlab
 #define YYERROR         goto yyerrorlab
-#define YYNOMEM         goto yyexhaustedlab
 
 
 #define YYRECOVERING()  (!!yyerrstatus)
@@ -777,7 +781,10 @@ do {                                            \
     YYFPRINTF Args;                             \
 } while (0)
 
-
+/* This macro is provided for backward compatibility. */
+# ifndef YY_LOCATION_PRINT
+#  define YY_LOCATION_PRINT(File, Loc) ((void) 0)
+# endif
 
 
 # define YY_SYMBOL_PRINT(Title, Kind, Value, Location)                    \
@@ -804,6 +811,10 @@ yy_symbol_value_print (FILE *yyo,
   YY_USE (yyoutput);
   if (!yyvaluep)
     return;
+# ifdef YYPRINT
+  if (yykind < YYNTOKENS)
+    YYPRINT (yyo, yytoknum[yykind], *yyvaluep);
+# endif
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
   YY_USE (yykind);
   YY_IGNORE_MAYBE_UNINITIALIZED_END
@@ -988,7 +999,6 @@ yyparse (void)
   YYDPRINTF ((stderr, "Starting parse\n"));
 
   yychar = YYEMPTY; /* Cause a token to be read.  */
-
   goto yysetstate;
 
 
@@ -1014,7 +1024,7 @@ yysetstate:
 
   if (yyss + yystacksize - 1 <= yyssp)
 #if !defined yyoverflow && !defined YYSTACK_RELOCATE
-    YYNOMEM;
+    goto yyexhaustedlab;
 #else
     {
       /* Get the current used size of the three stacks, in elements.  */
@@ -1042,7 +1052,7 @@ yysetstate:
 # else /* defined YYSTACK_RELOCATE */
       /* Extend the stack our own way.  */
       if (YYMAXDEPTH <= yystacksize)
-        YYNOMEM;
+        goto yyexhaustedlab;
       yystacksize *= 2;
       if (YYMAXDEPTH < yystacksize)
         yystacksize = YYMAXDEPTH;
@@ -1053,7 +1063,7 @@ yysetstate:
           YY_CAST (union yyalloc *,
                    YYSTACK_ALLOC (YY_CAST (YYSIZE_T, YYSTACK_BYTES (yystacksize))));
         if (! yyptr)
-          YYNOMEM;
+          goto yyexhaustedlab;
         YYSTACK_RELOCATE (yyss_alloc, yyss);
         YYSTACK_RELOCATE (yyvs_alloc, yyvs);
 #  undef YYSTACK_RELOCATE
@@ -1074,7 +1084,6 @@ yysetstate:
         YYABORT;
     }
 #endif /* !defined yyoverflow && !defined YYSTACK_RELOCATE */
-
 
   if (yystate == YYFINAL)
     YYACCEPT;
@@ -1198,7 +1207,7 @@ yyreduce:
     addChild(node, declFuncs);
     addChild(declFuncs, (yyvsp[0].node));
     }
-#line 1202 "obj/tpcas.c"
+#line 1211 "obj/tpcas.c"
     break;
 
   case 3: /* DeclVars: DeclVars TYPE Declarateurs ';'  */
@@ -1217,7 +1226,7 @@ yyreduce:
             addChild((yyval.node), (yyvsp[-1].node));
         }
     }
-#line 1221 "obj/tpcas.c"
+#line 1230 "obj/tpcas.c"
     break;
 
   case 4: /* DeclVars: %empty  */
@@ -1225,7 +1234,7 @@ yyreduce:
       {
         (yyval.node) = NULL;
         }
-#line 1229 "obj/tpcas.c"
+#line 1238 "obj/tpcas.c"
     break;
 
   case 5: /* Declarateurs: Declarateurs ',' IDENT  */
@@ -1236,7 +1245,7 @@ yyreduce:
         tmp->ident = strdup((yyvsp[0].ident));
         addSibling((yyval.node), tmp);
         }
-#line 1240 "obj/tpcas.c"
+#line 1249 "obj/tpcas.c"
     break;
 
   case 6: /* Declarateurs: IDENT  */
@@ -1245,7 +1254,7 @@ yyreduce:
         (yyval.node) = makeNode(Ident);
         (yyval.node)->ident = strdup((yyvsp[0].ident));
         }
-#line 1249 "obj/tpcas.c"
+#line 1258 "obj/tpcas.c"
     break;
 
   case 7: /* Declarateurs: Declarateurs ',' IDENT '[' NUM ']'  */
@@ -1259,7 +1268,7 @@ yyreduce:
         num->num = (yyvsp[-1].num);
         addChild((yyval.node), num);
         }
-#line 1263 "obj/tpcas.c"
+#line 1272 "obj/tpcas.c"
     break;
 
   case 8: /* Declarateurs: IDENT '[' NUM ']'  */
@@ -1273,7 +1282,7 @@ yyreduce:
         num->num = (yyvsp[-1].num);
         addChild(tmp, num);
         }
-#line 1277 "obj/tpcas.c"
+#line 1286 "obj/tpcas.c"
     break;
 
   case 9: /* DeclFoncts: DeclFoncts DeclFonct  */
@@ -1282,7 +1291,7 @@ yyreduce:
         (yyval.node) = (yyvsp[-1].node);
         addSibling((yyval.node), (yyvsp[0].node));
         }
-#line 1286 "obj/tpcas.c"
+#line 1295 "obj/tpcas.c"
     break;
 
   case 10: /* DeclFoncts: DeclFonct  */
@@ -1290,7 +1299,7 @@ yyreduce:
                  {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1294 "obj/tpcas.c"
+#line 1303 "obj/tpcas.c"
     break;
 
   case 11: /* DeclFonct: EnTeteFonct Corps  */
@@ -1300,7 +1309,7 @@ yyreduce:
         addChild((yyval.node), (yyvsp[-1].node));
         addChild((yyval.node), (yyvsp[0].node));
         }
-#line 1304 "obj/tpcas.c"
+#line 1313 "obj/tpcas.c"
     break;
 
   case 12: /* EnTeteFonct: TYPE IDENT '(' Parametres ')'  */
@@ -1315,7 +1324,7 @@ yyreduce:
         addSibling((yyval.node), tmp2);
         addChild(tmp2, (yyvsp[-1].node));
         }
-#line 1319 "obj/tpcas.c"
+#line 1328 "obj/tpcas.c"
     break;
 
   case 13: /* EnTeteFonct: VOID IDENT '(' Parametres ')'  */
@@ -1330,7 +1339,7 @@ yyreduce:
         addSibling((yyval.node), tmp2);
         addChild(tmp2, (yyvsp[-1].node));
         }
-#line 1334 "obj/tpcas.c"
+#line 1343 "obj/tpcas.c"
     break;
 
   case 14: /* Parametres: VOID  */
@@ -1338,7 +1347,7 @@ yyreduce:
             {
         (yyval.node) = makeNode(Void);
         }
-#line 1342 "obj/tpcas.c"
+#line 1351 "obj/tpcas.c"
     break;
 
   case 15: /* Parametres: ListTypVar  */
@@ -1346,7 +1355,7 @@ yyreduce:
                   {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1350 "obj/tpcas.c"
+#line 1359 "obj/tpcas.c"
     break;
 
   case 16: /* ListTypVar: ListTypVar ',' TYPE IDENT  */
@@ -1360,7 +1369,7 @@ yyreduce:
         addChild(tmp1, tmp2); 
         addSibling((yyval.node), tmp1);
         }
-#line 1364 "obj/tpcas.c"
+#line 1373 "obj/tpcas.c"
     break;
 
   case 17: /* ListTypVar: TYPE IDENT  */
@@ -1372,7 +1381,7 @@ yyreduce:
         tmp->ident = strdup((yyvsp[0].ident));
         addChild((yyval.node), tmp);
         }
-#line 1376 "obj/tpcas.c"
+#line 1385 "obj/tpcas.c"
     break;
 
   case 18: /* ListTypVar: ListTypVar ',' TYPE IDENT '[' ']'  */
@@ -1388,7 +1397,7 @@ yyreduce:
         addChild(arr, tmp1);
         addSibling((yyval.node), arr);
         }
-#line 1392 "obj/tpcas.c"
+#line 1401 "obj/tpcas.c"
     break;
 
   case 19: /* ListTypVar: TYPE IDENT '[' ']'  */
@@ -1402,7 +1411,7 @@ yyreduce:
         addChild(tmp1, tmp2);
         addChild((yyval.node), tmp1);
         }
-#line 1406 "obj/tpcas.c"
+#line 1415 "obj/tpcas.c"
     break;
 
   case 20: /* Corps: '{' DeclVars SuiteInstr '}'  */
@@ -1412,7 +1421,7 @@ yyreduce:
     addChild((yyval.node), (yyvsp[-2].node));
     addChild((yyval.node), (yyvsp[-1].node));
     }
-#line 1416 "obj/tpcas.c"
+#line 1425 "obj/tpcas.c"
     break;
 
   case 21: /* SuiteInstr: SuiteInstr Instr  */
@@ -1427,7 +1436,7 @@ yyreduce:
             addChild((yyval.node), (yyvsp[0].node));
             }
         }
-#line 1431 "obj/tpcas.c"
+#line 1440 "obj/tpcas.c"
     break;
 
   case 22: /* SuiteInstr: %empty  */
@@ -1435,7 +1444,7 @@ yyreduce:
       {
         (yyval.node) = NULL;
         }
-#line 1439 "obj/tpcas.c"
+#line 1448 "obj/tpcas.c"
     break;
 
   case 23: /* Instr: LValue '=' Exp ';'  */
@@ -1446,7 +1455,7 @@ yyreduce:
         addChild((yyval.node), (yyvsp[-3].node));
         addChild((yyval.node), (yyvsp[-1].node));
         }
-#line 1450 "obj/tpcas.c"
+#line 1459 "obj/tpcas.c"
     break;
 
   case 24: /* Instr: IF '(' Exp ')' Instr  */
@@ -1457,7 +1466,7 @@ yyreduce:
         addChild((yyval.node), (yyvsp[-2].node));
         addChild((yyval.node), (yyvsp[0].node));
         }
-#line 1461 "obj/tpcas.c"
+#line 1470 "obj/tpcas.c"
     break;
 
   case 25: /* Instr: IF '(' Exp ')' Instr ELSE Instr  */
@@ -1469,7 +1478,7 @@ yyreduce:
         addChild((yyval.node), (yyvsp[-2].node));
         addChild((yyval.node), (yyvsp[0].node));
         }
-#line 1473 "obj/tpcas.c"
+#line 1482 "obj/tpcas.c"
     break;
 
   case 26: /* Instr: WHILE '(' Exp ')' Instr  */
@@ -1480,7 +1489,7 @@ yyreduce:
         addChild((yyval.node), (yyvsp[-2].node));
         addChild((yyval.node), (yyvsp[0].node));
         }
-#line 1484 "obj/tpcas.c"
+#line 1493 "obj/tpcas.c"
     break;
 
   case 27: /* Instr: IDENT '(' Arguments ')' ';'  */
@@ -1492,7 +1501,7 @@ yyreduce:
         addChild(tmp, (yyvsp[-2].node));
         addChild((yyval.node), tmp);
         }
-#line 1496 "obj/tpcas.c"
+#line 1505 "obj/tpcas.c"
     break;
 
   case 28: /* Instr: RETURN Exp ';'  */
@@ -1502,7 +1511,7 @@ yyreduce:
         (yyval.node)->ident = strdup((yyvsp[-2].ident));
         addChild((yyval.node), (yyvsp[-1].node));
         }
-#line 1506 "obj/tpcas.c"
+#line 1515 "obj/tpcas.c"
     break;
 
   case 29: /* Instr: RETURN ';'  */
@@ -1511,7 +1520,7 @@ yyreduce:
         (yyval.node) = makeNode(Return);
         (yyval.node)->ident = strdup((yyvsp[-1].ident));
         }
-#line 1515 "obj/tpcas.c"
+#line 1524 "obj/tpcas.c"
     break;
 
   case 30: /* Instr: '{' SuiteInstr '}'  */
@@ -1519,7 +1528,7 @@ yyreduce:
                           {
         (yyval.node) = (yyvsp[-1].node);
         }
-#line 1523 "obj/tpcas.c"
+#line 1532 "obj/tpcas.c"
     break;
 
   case 31: /* Instr: ';'  */
@@ -1527,7 +1536,7 @@ yyreduce:
            {
         (yyval.node) = makeNode(None);
         }
-#line 1531 "obj/tpcas.c"
+#line 1540 "obj/tpcas.c"
     break;
 
   case 32: /* Exp: Exp OR TB  */
@@ -1538,7 +1547,7 @@ yyreduce:
     addChild((yyval.node), (yyvsp[0].node));
     (yyval.node)->ident = strdup((yyvsp[-1].ident));
     }
-#line 1542 "obj/tpcas.c"
+#line 1551 "obj/tpcas.c"
     break;
 
   case 33: /* Exp: TB  */
@@ -1546,7 +1555,7 @@ yyreduce:
           {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1550 "obj/tpcas.c"
+#line 1559 "obj/tpcas.c"
     break;
 
   case 34: /* TB: TB AND FB  */
@@ -1557,7 +1566,7 @@ yyreduce:
     addChild((yyval.node), (yyvsp[0].node));
     (yyval.node)->ident = strdup((yyvsp[-1].ident));
     }
-#line 1561 "obj/tpcas.c"
+#line 1570 "obj/tpcas.c"
     break;
 
   case 35: /* TB: FB  */
@@ -1565,7 +1574,7 @@ yyreduce:
           {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1569 "obj/tpcas.c"
+#line 1578 "obj/tpcas.c"
     break;
 
   case 36: /* FB: FB EQ M  */
@@ -1576,7 +1585,7 @@ yyreduce:
     addChild((yyval.node), (yyvsp[0].node));
     (yyval.node)->ident = strdup((yyvsp[-1].ident));
     }
-#line 1580 "obj/tpcas.c"
+#line 1589 "obj/tpcas.c"
     break;
 
   case 37: /* FB: M  */
@@ -1584,7 +1593,7 @@ yyreduce:
          {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1588 "obj/tpcas.c"
+#line 1597 "obj/tpcas.c"
     break;
 
   case 38: /* M: M ORDER E  */
@@ -1595,7 +1604,7 @@ yyreduce:
     addChild((yyval.node), (yyvsp[0].node));
     (yyval.node)->ident = strdup((yyvsp[-1].ident));
     }
-#line 1599 "obj/tpcas.c"
+#line 1608 "obj/tpcas.c"
     break;
 
   case 39: /* M: E  */
@@ -1603,7 +1612,7 @@ yyreduce:
          {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1607 "obj/tpcas.c"
+#line 1616 "obj/tpcas.c"
     break;
 
   case 40: /* E: E ADDSUB T  */
@@ -1614,7 +1623,7 @@ yyreduce:
     addChild((yyval.node), (yyvsp[0].node));
     (yyval.node)->ident = strdup((yyvsp[-1].ident));
     }
-#line 1618 "obj/tpcas.c"
+#line 1627 "obj/tpcas.c"
     break;
 
   case 41: /* E: T  */
@@ -1622,7 +1631,7 @@ yyreduce:
          {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1626 "obj/tpcas.c"
+#line 1635 "obj/tpcas.c"
     break;
 
   case 42: /* T: T DIVSTAR F  */
@@ -1633,7 +1642,7 @@ yyreduce:
     addChild((yyval.node), (yyvsp[0].node));
     (yyval.node)->ident = strdup((yyvsp[-1].ident));
     }
-#line 1637 "obj/tpcas.c"
+#line 1646 "obj/tpcas.c"
     break;
 
   case 43: /* T: F  */
@@ -1641,7 +1650,7 @@ yyreduce:
          {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1645 "obj/tpcas.c"
+#line 1654 "obj/tpcas.c"
     break;
 
   case 44: /* F: ADDSUB F  */
@@ -1651,7 +1660,7 @@ yyreduce:
         addChild((yyval.node), (yyvsp[0].node));
         (yyval.node)->ident = strdup((yyvsp[-1].ident));
         }
-#line 1655 "obj/tpcas.c"
+#line 1664 "obj/tpcas.c"
     break;
 
   case 45: /* F: '!' F  */
@@ -1660,7 +1669,7 @@ yyreduce:
         (yyval.node) = makeNode(Not);
         addChild((yyval.node), (yyvsp[0].node));
         }
-#line 1664 "obj/tpcas.c"
+#line 1673 "obj/tpcas.c"
     break;
 
   case 46: /* F: '(' Exp ')'  */
@@ -1668,7 +1677,7 @@ yyreduce:
                    {
         (yyval.node) = (yyvsp[-1].node);
         }
-#line 1672 "obj/tpcas.c"
+#line 1681 "obj/tpcas.c"
     break;
 
   case 47: /* F: NUM  */
@@ -1677,7 +1686,7 @@ yyreduce:
         (yyval.node) = makeNode(Num);
         (yyval.node)->num = (yyvsp[0].num);
         }
-#line 1681 "obj/tpcas.c"
+#line 1690 "obj/tpcas.c"
     break;
 
   case 48: /* F: CHARACTER  */
@@ -1686,7 +1695,7 @@ yyreduce:
         (yyval.node) = makeNode(Character);
         (yyval.node)->ident = strdup((yyvsp[0].ident));
         }
-#line 1690 "obj/tpcas.c"
+#line 1699 "obj/tpcas.c"
     break;
 
   case 49: /* F: LValue  */
@@ -1694,7 +1703,7 @@ yyreduce:
               {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1698 "obj/tpcas.c"
+#line 1707 "obj/tpcas.c"
     break;
 
   case 50: /* F: IDENT '(' Arguments ')'  */
@@ -1708,7 +1717,7 @@ yyreduce:
         addChild(tmp, arg);
         addChild((yyval.node), tmp);
         }
-#line 1712 "obj/tpcas.c"
+#line 1721 "obj/tpcas.c"
     break;
 
   case 51: /* LValue: IDENT  */
@@ -1719,7 +1728,7 @@ yyreduce:
         tmp->ident = strdup((yyvsp[0].ident));
         addChild((yyval.node), tmp);
         }
-#line 1723 "obj/tpcas.c"
+#line 1732 "obj/tpcas.c"
     break;
 
   case 52: /* LValue: IDENT '[' Exp ']'  */
@@ -1733,7 +1742,7 @@ yyreduce:
         addChild(tmp, tmp2);
         addChild(tmp2, (yyvsp[-1].node));
         }
-#line 1737 "obj/tpcas.c"
+#line 1746 "obj/tpcas.c"
     break;
 
   case 53: /* Arguments: ListExp  */
@@ -1741,7 +1750,7 @@ yyreduce:
                {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1745 "obj/tpcas.c"
+#line 1754 "obj/tpcas.c"
     break;
 
   case 54: /* Arguments: %empty  */
@@ -1749,7 +1758,7 @@ yyreduce:
       {
         (yyval.node) = NULL;
         }
-#line 1753 "obj/tpcas.c"
+#line 1762 "obj/tpcas.c"
     break;
 
   case 55: /* ListExp: ListExp ',' Exp  */
@@ -1758,7 +1767,7 @@ yyreduce:
         (yyval.node) = (yyvsp[-2].node);
         addSibling((yyval.node), (yyvsp[0].node));
         }
-#line 1762 "obj/tpcas.c"
+#line 1771 "obj/tpcas.c"
     break;
 
   case 56: /* ListExp: Exp  */
@@ -1766,11 +1775,11 @@ yyreduce:
            {
         (yyval.node) = (yyvsp[0].node);
         }
-#line 1770 "obj/tpcas.c"
+#line 1779 "obj/tpcas.c"
     break;
 
 
-#line 1774 "obj/tpcas.c"
+#line 1783 "obj/tpcas.c"
 
       default: break;
     }
@@ -1852,7 +1861,6 @@ yyerrorlab:
      label yyerrorlab therefore never appears in user code.  */
   if (0)
     YYERROR;
-  ++yynerrs;
 
   /* Do not reclaim the symbols of the rule whose action triggered
      this YYERROR.  */
@@ -1913,7 +1921,7 @@ yyerrlab1:
 `-------------------------------------*/
 yyacceptlab:
   yyresult = 0;
-  goto yyreturnlab;
+  goto yyreturn;
 
 
 /*-----------------------------------.
@@ -1921,22 +1929,24 @@ yyacceptlab:
 `-----------------------------------*/
 yyabortlab:
   yyresult = 1;
-  goto yyreturnlab;
+  goto yyreturn;
 
 
-/*-----------------------------------------------------------.
-| yyexhaustedlab -- YYNOMEM (memory exhaustion) comes here.  |
-`-----------------------------------------------------------*/
+#if !defined yyoverflow
+/*-------------------------------------------------.
+| yyexhaustedlab -- memory exhaustion comes here.  |
+`-------------------------------------------------*/
 yyexhaustedlab:
   yyerror (YY_("memory exhausted"));
   yyresult = 2;
-  goto yyreturnlab;
+  goto yyreturn;
+#endif
 
 
-/*----------------------------------------------------------.
-| yyreturnlab -- parsing is finished, clean up and return.  |
-`----------------------------------------------------------*/
-yyreturnlab:
+/*-------------------------------------------------------.
+| yyreturn -- parsing is finished, clean up and return.  |
+`-------------------------------------------------------*/
+yyreturn:
   if (yychar != YYEMPTY)
     {
       /* Make sure we have latest lookahead translation.  See comments at
