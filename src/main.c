@@ -17,6 +17,9 @@ int main(int argc, char *argv[]){
     int count = 0;
     int err = yyparse();
 
+    //Find types of expressions in the program.
+    in_depth_course(node, NULL, NULL, find_types, NULL, NULL);
+
     fill_global_vars(global_vars);
     decl_functions = fill_decl_functions(&count);
 

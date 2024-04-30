@@ -242,13 +242,16 @@ Instr:
         }
     ;
 Exp :  Exp OR TB {
-    $$ = makeNode(Or);
-    addChild($$, $1);
-    addChild($$, $3);
-    $$->ident = strdup($2);
+    $$ = makeNode(Expression);
+    Node * tmp = makeNode(Or);
+    addChild($$, tmp);
+    addChild(tmp, $1);
+    addChild(tmp, $3);
+    tmp->ident = strdup($2);
     }
     |  TB {
-        $$ = $1;
+        $$ = makeNode(Expression);
+        addChild($$, $1);
         }
     ;
 TB  :  TB AND FB {

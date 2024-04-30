@@ -1,4 +1,4 @@
 int main(void){
     a[2] = 1 - 2 - 3 - 4;
-    return 1;
+    return 'a';
 }

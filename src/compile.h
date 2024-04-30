@@ -65,7 +65,7 @@ void fill_global_vars(SymbolsTable* t); ///< Function to fill the table with glo
 
 SymbolsTable** fill_decl_functions(int *count); ///< Function to fill the table with declared functions.
 
-void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), SymbolsTable *t, FILE * file); ///< Function to traverse the tree in depth.
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), void (*check)(Node *), SymbolsTable *t, FILE * file); ///< Function to traverse the tree in depth.
 
 void in_width_course(Node * root, void (*func)(SymbolsTable **, Node *, int *), SymbolsTable **t, int *count); ///< Function to traverse the tree in width.
 
@@ -73,9 +73,15 @@ void free_table(Table *t); ///< Function to free the memory allocated for the ta
 
 int do_calc(Node *root, FILE * file); ///< Function to perform calculations on the tree nodes.
 
+int calc_type(Node *root);
+
 void free_symbols_table(SymbolsTable *t); ///< Function to free the memory allocated for the symbol table.
 
 void free_tables(SymbolsTable **tables, int length); ///< Function to free the memory allocated for the tables.
+
+void print_type(int type);
+
+void find_types(Node *root);
 
 void print_table(Table *t); ///< Function to print the table.
 

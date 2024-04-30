@@ -70,6 +70,40 @@ static int check_type(char * type){
     return -1;
 }
 
+static int check_node_type(Node *root){
+    //TO DO
+    switch(root->label){
+        case Num:
+            return 1;
+        case Character:
+            return 0;
+        case Variable:
+            //TO DO
+        default:
+            return -1;
+    }
+}
+
+static void check_affect(Node *root){
+    if(root){
+        if(check_node_type(FIRSTCHILD(root)) == 0) //If the firstChild is a char
+            switch(SECONDCHILD(root)->label){
+                case Expression:
+                    if(calc_type(SECONDCHILD(root)))
+                        fprintf(stderr, "Warning, You are putting a char in an int");
+                    break;
+                //TO DOOOOOOOO
+                default:
+                    return;
+            }
+    }
+}
+
+void check_affectations(Node *root){
+    if(root->label == Eq)
+        check_affect(root);
+}
+
 /**
  * @brief Adds a node to the symbol table.
  * @param t The symbol table to add to.
@@ -138,7 +172,7 @@ void fill_table_fcts(SymbolsTable **t, Node *root, int *count){
  */
 SymbolsTable* fill_func_parameters_table(Node *root){
     SymbolsTable* res = creatSymbolsTable();
-    in_depth_course(root->firstChild->nextSibling->nextSibling->firstChild, NULL, fill_table_vars, res, NULL);
+    in_depth_course(root->firstChild->nextSibling->nextSibling->firstChild, NULL, fill_table_vars, NULL, res, NULL);
     return res;
 }
 
@@ -160,7 +194,7 @@ SymbolsTable** fill_decl_functions(int *count){
  */
 void fill_global_vars(SymbolsTable* t){
     if(node->firstChild)
-        in_depth_course(node->firstChild->firstChild, NULL, fill_table_vars,  t, NULL);
+        in_depth_course(node->firstChild->firstChild, NULL, fill_table_vars, NULL,  t, NULL);
 }
 
 /**
@@ -168,18 +202,21 @@ void fill_global_vars(SymbolsTable* t){
  * @param node The root node of the tree.
  * @param calc A function to perform calculations on the nodes.
  * @param table A function to fill the symbol table.
+ * @param check A function to check specifications on the nodes.
  * @param t The symbol table to fill.
  * @param file The file to write to.
  */
-void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), SymbolsTable *t, FILE * file){
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), void (*check)(Node *), SymbolsTable *t, FILE * file){
     if(root) {
         if (calc)
             if (calc(root, file))
                 return;
         if (table)
             table(t, root);
-        in_depth_course(root->firstChild, calc, table, t, file);
-        in_depth_course(root->nextSibling, calc, table, t, file);
+        if(check)
+            check(root);
+        in_depth_course(root->firstChild, calc, table, check, t, file);
+        in_depth_course(root->nextSibling, calc, table, check, t, file);
     }
 }
 
@@ -295,7 +332,26 @@ static int max(int a, int b){
 }
 
 int calc_type(Node *root){
-    return 0;
+    if(root){
+        int type;
+        switch(root->label){
+            case Num:
+                type =  1;
+                break;
+            case Character:
+                type =  0;
+                break;
+            default:
+                type = -1;
+        }
+        return max(type, max(calc_type(root->firstChild), calc_type(root->nextSibling)));
+    }
+    return -2;
+}
+
+void find_types(Node *root){
+    if(root->label == Expression)
+        print_type(calc_type(root->firstChild));
 }
 
 /**
@@ -307,7 +363,7 @@ void build_minimal_asm(Node *root){
     fprintf(file, "global _start\n");
     fprintf(file, ".text:\n");
     fprintf(file, "_start:\n");
-    in_depth_course(root->firstChild, do_calc, NULL, NULL, file);
+    in_depth_course(root->firstChild, do_calc, NULL, NULL, NULL, file);
     fprintf(file, "mov rax, 60\n");
     fprintf(file,  "mov rdi, 0\n");
     fprintf(file, "syscall\n");
@@ -346,6 +402,20 @@ void free_tables(SymbolsTable** tables, int length){
         free_symbols_table(tables[i * 2 + 1]); ///< Free the symbol table at index i * 2 + 1.
     }
     free(tables); ///< Free the array of symbol tables.
+}
+
+void print_type(int type){
+    switch(type){
+        case 1:
+            printf("It's an int\n");
+            break;
+        case 0:
+            printf("It's a char\n");
+            break;
+        default:
+            printf("Unknow type\n");
+
+    }
 }
 
 /**
