@@ -6,12 +6,13 @@
 	int uppercase;
     
 int main(void)  {
+   char w;
    int test;
    char t;
    somme=12;
    produit=24;
    quotient=24/12;
-   letter='c';
+   letter=20;
    digit='0';
    uppercase=letter+('A'-'a');
    reste=getint();

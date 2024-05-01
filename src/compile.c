@@ -1,7 +1,5 @@
 #include "compile.h"
 
-//REVOIR TABLE DES SYMBOLS DES FONCTIONS.VARIABLE
-
 /**
  * @brief Checks if a symbol exists in the symbol table.
  * @param t The symbol table to check_in_table.
@@ -15,9 +13,16 @@ int check_in_table(SymbolsTable t, char *s){
     return 0;
 }
 
-int find_type_in_sb(char *var, SymbolsTable *table){
+/**
+ * Finds the type of a variable in the given symbols table.
+ *
+ * @param var_name The name of the variable to search for.
+ * @param table The symbols table to search in.
+ * @return The type of the variable (0 for int, 1 for float), or -1 if the variable is not found.
+ */
+int find_type_in_sb(char *var_name, SymbolsTable *table){
     for (Table *current = table->first; current; current = current->next)
-        if (strcmp(current->var.ident, var) == 0)
+        if (strcmp(current->var.ident, var_name) == 0)
             return current->var.is_int;
     return -1;
 }
@@ -41,7 +46,7 @@ void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int co
     if(root) {
         if (root->label == Variable) {
             int is_declared = 0;
-            char *s = root->firstChild->label == Array ? root->firstChild->firstChild->ident : root->firstChild->ident;
+            char *s = FIRSTCHILD(root)->label == Array ? FIRSTCHILD(root)->firstChild->ident : FIRSTCHILD(root)->ident;
             for (int i = 0; i < count * 2; ++i)
                 if (check_in_table(*decl_functions[i], s))
                     is_declared = 1;
@@ -50,7 +55,7 @@ void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int co
             if (!is_declared)
                 fprintf(stderr, "Error: variable %s is not declared\n", s);
         }
-        check_decl(global_vars, decl_functions, count, root->firstChild);
+        check_decl(global_vars, decl_functions, count, FIRSTCHILD(root));
         check_decl(global_vars, decl_functions, count, root->nextSibling);
     }
 }
@@ -79,6 +84,19 @@ static int check_type(char * type){
     return -1;
 }
 
+/**
+ * Checks the type of a given node in the abstract syntax tree.
+ * 
+ * @param root The root node of the abstract syntax tree.
+ * @param global_vars The symbol table for global variables.
+ * @param decl_functs An array of symbol tables for declared functions.
+ * @param count The number of declared functions.
+ * @return The type of the node:
+ *         - 1 if the node is a number.
+ *         - 0 if the node is a character.
+ *         - The type of the variable if the node is a variable.
+ *         - -1 if the node is of an unknown type.
+ */
 static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
     switch(root->label){
         case Num:
@@ -99,31 +117,47 @@ static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable *
     }
 }
 
+/**
+ * Checks if the given node contains an assignment of a char value to an int variable.
+ * Prints a warning message if such assignment is detected.
+ *
+ * @param root The root node of the syntax tree.
+ * @param global_vars The symbol table for global variables.
+ * @param decl_functs The array of symbol tables for declared functions.
+ * @param count The number of declared functions.
+ */
 static void check_affect(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
-    //TO CORRECT
     if(root){
         if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, count) == 0){ //If the firstChild is a char
             switch(SECONDCHILD(root)->label){ //Check if the second child is an int
                 case Expression:
                     if(calc_type(SECONDCHILD(root)))
-                        fprintf(stderr, "Warning, You are putting a char in an int");
+                        fprintf(stderr, "Warning, You are putting a char in an int\n");
                     break;
                 default:
                     if(check_node_type(SECONDCHILD(root), global_vars, decl_functs, count))
-                        fprintf(stderr, "Warning, You are putting a char in an int");
+                        fprintf(stderr, "Warning, You are putting a char in an int\n");
             }
         }
     }
 }
 
+/**
+ * Recursively checks the affectations in the given syntax tree.
+ * 
+ * @param root The root node of the syntax tree.
+ * @param global_vars The symbol table for global variables.
+ * @param decl_functs The symbol table for declared functions.
+ * @param count The count of declared functions.
+ */
 void check_affectations(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
     if(root){
-        if(root->label == Eq)
+        if(root->label == Equals){
             check_affect(root, global_vars, decl_functs, count);
+        }
         check_affectations(FIRSTCHILD(root), global_vars, decl_functs, count);
         check_affectations(root->nextSibling, global_vars, decl_functs, count);
     }
-
 }
 
 /**
@@ -141,7 +175,7 @@ static void add_to_table(SymbolsTable *t, Node *root, char * type){
 
         table->var.deplct = t->offset;
         if(table->var.is_int)
-            t->offset += 8;
+            t->offset += 4;
         else
             t->offset += 1;
         table->next = t->first;
@@ -156,15 +190,36 @@ static void add_to_table(SymbolsTable *t, Node *root, char * type){
  */
 void fill_table_vars(SymbolsTable *t, Node *root){
     Node * tmp = NULL;
-    if(root->label == Type && root->firstChild)
-        tmp = root->firstChild;
+    if(root->label == Type && FIRSTCHILD(root))
+        tmp = FIRSTCHILD(root);
     while(tmp){
         if(tmp->label == Array)
-            add_to_table(t, tmp->firstChild, root->ident);
+            add_to_table(t, FIRSTCHILD(tmp), root->ident);
         else
             add_to_table(t, tmp, root->ident);
         tmp = tmp->nextSibling;
     }
+}
+
+/**
+ * Fills the function variables in the symbol table.
+ * 
+ * @param root The root node of the abstract syntax tree.
+ * @return The symbol table containing the function variables.
+ */
+static SymbolsTable* fill_func_vars(Node *root){
+    SymbolsTable *t = creatSymbolsTable();
+    Node *tmp = SECONDCHILD(root)->nextSibling->nextSibling->firstChild;
+    while(tmp){
+        if(tmp->label == Type && FIRSTCHILD(tmp)){
+            if(FIRSTCHILD(tmp)->label == Array)
+                add_to_table(t, FIRSTCHILD(tmp)->firstChild, tmp->ident);
+            else
+                add_to_table(t, FIRSTCHILD(tmp), tmp->ident);
+        }
+        tmp = tmp->nextSibling;
+    }
+    return t;
 }
 
 /**
@@ -176,12 +231,10 @@ void fill_table_vars(SymbolsTable *t, Node *root){
 void fill_table_fcts(SymbolsTable **t, Node *root, int *count){
     Node * tmp = root;
     if(tmp->label == Function){
-        if(!strcmp(tmp->firstChild->nextSibling->ident, "main"))
+        if(!strcmp(SECONDCHILD(tmp)->ident, "main"))
             build_minimal_asm(tmp);
-        SymbolsTable *new_table = creatSymbolsTable();
         t[(*count) * 2] = fill_func_parameters_table(tmp);
-        fill_table_vars(new_table, tmp->firstChild->nextSibling->nextSibling->nextSibling->firstChild);
-        t[(*count) * 2 + 1] = new_table;
+        t[(*count) * 2 + 1] = fill_func_vars(tmp);
         (*count)++;
     }
 }
@@ -194,7 +247,7 @@ void fill_table_fcts(SymbolsTable **t, Node *root, int *count){
  */
 SymbolsTable* fill_func_parameters_table(Node *root){
     SymbolsTable* res = creatSymbolsTable();
-    in_depth_course(root->firstChild->nextSibling->nextSibling->firstChild, NULL, fill_table_vars, NULL, res, NULL);
+    in_depth_course(SECONDCHILD(root)->nextSibling->firstChild, NULL, fill_table_vars, NULL, res, NULL);
     return res;
 }
 
@@ -204,9 +257,9 @@ SymbolsTable* fill_func_parameters_table(Node *root){
  * @return A pointer to the filled symbol table.
  */
 SymbolsTable** fill_decl_functions(int *count){
-    SymbolsTable** all_tables = (SymbolsTable**) try(malloc(sizeof(SymbolsTable*) * 10), NULL);
-    if(node->firstChild)
-        in_width_course(node->firstChild->nextSibling->firstChild, fill_table_fcts, all_tables, count);
+    SymbolsTable** all_tables = (SymbolsTable**) try(malloc(sizeof(SymbolsTable*) * 20), NULL);
+    if(FIRSTCHILD(node))
+        in_width_course(SECONDCHILD(node)->firstChild, fill_table_fcts, all_tables, count);
     return all_tables;
 }
 
@@ -215,8 +268,8 @@ SymbolsTable** fill_decl_functions(int *count){
  * @param t The symbol table to fill.
  */
 void fill_global_vars(SymbolsTable* t){
-    if(node->firstChild)
-        in_depth_course(node->firstChild->firstChild, NULL, fill_table_vars, NULL,  t, NULL);
+    if(FIRSTCHILD(node))
+        in_depth_course(FIRSTCHILD(node)->firstChild, NULL, fill_table_vars, NULL,  t, NULL);
 }
 
 /**
@@ -237,7 +290,7 @@ void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(Sym
             table(t, root);
         if(check)
             check(root);
-        in_depth_course(root->firstChild, calc, table, check, t, file);
+        in_depth_course(FIRSTCHILD(root), calc, table, check, t, file);
         in_depth_course(root->nextSibling, calc, table, check, t, file);
     }
 }
@@ -267,6 +320,14 @@ static void calc_to_asm(FILE * file){
     fprintf(file, "pop rax\n");
 }
 
+/**
+ * Calculates the value if there is only one child.
+ *
+ * This function calculates the value of one child and writes the corresponding assembly code to the given file.
+ *
+ * @param file The file to write the assembly code to.
+ * @return 0 if the calculation is successful.
+ */
 static int calc_one_child(FILE *file){
     fprintf(file, "mov rax, 0\n");
     fprintf(file, "push rax\n");
@@ -281,13 +342,13 @@ static int calc_one_child(FILE *file){
  */
 static int addsub_calc(Node *root, FILE * file){
     int left_op, right_op;
-    if(root->firstChild->nextSibling){
-        left_op = do_calc(root->firstChild, file);
-        right_op = do_calc(root->firstChild->nextSibling, file);
+    if(SECONDCHILD(root)){
+        left_op = do_calc(FIRSTCHILD(root), file);
+        right_op = do_calc(SECONDCHILD(root), file);
     }
     else{
         left_op = calc_one_child(file);
-        right_op = do_calc(root->firstChild, file);
+        right_op = do_calc(FIRSTCHILD(root), file);
     }
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '+'){
@@ -309,8 +370,8 @@ static int addsub_calc(Node *root, FILE * file){
  * @return The result of the multiplication or division operation.
  */
 static int divstar_calc(Node *root, FILE * file){
-    int left_op = do_calc(root->firstChild, file);
-    int right_op = do_calc(root->firstChild->nextSibling, file);
+    int left_op = do_calc(FIRSTCHILD(root), file);
+    int right_op = do_calc(SECONDCHILD(root), file);
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '*'){
         fprintf(file, "imul rax, rcx\n");
@@ -360,12 +421,25 @@ int do_calc(Node *root, FILE * file){
     }
 }
 
+/**
+ * Returns the maximum of two integers.
+ *
+ * @param a The first integer.
+ * @param b The second integer.
+ * @return The maximum of the two integers.
+ */
 static int max(int a, int b){
     if(a >= b)
         return a;
     return b;
 }
 
+/**
+ * Calculates the type of a given syntax tree node.
+ * 
+ * @param root The root node of the syntax tree.
+ * @return The type of the node. Returns -2 if the node is NULL.
+ */
 int calc_type(Node *root){
     if(root){
         int type;
@@ -376,17 +450,30 @@ int calc_type(Node *root){
             case Character:
                 type =  0;
                 break;
+            case Function:
+                if(!strcmp(FIRSTCHILD(root)->ident, "getchar"))
+                    type = 0;
+                else if(!strcmp(FIRSTCHILD(root)->ident, "getint"))
+                    type = 1;
+                else
+                    type = -1;
+                break;
             default:
                 type = -1;
         }
-        return max(type, max(calc_type(root->firstChild), calc_type(root->nextSibling)));
+        return max(type, max(calc_type(FIRSTCHILD(root)), calc_type(root->nextSibling)));
     }
     return -2;
 }
 
+/**
+ * Finds the types of nodes in the given tree and prints them.
+ *
+ * @param root The root node of the tree.
+ */
 void find_types(Node *root){
     if(root->label == Expression)
-        print_type(calc_type(root->firstChild));
+        print_type(calc_type(FIRSTCHILD(root)));
 }
 
 /**
@@ -398,7 +485,7 @@ void build_minimal_asm(Node *root){
     fprintf(file, "global _start\n");
     fprintf(file, ".text:\n");
     fprintf(file, "_start:\n");
-    in_depth_course(root->firstChild, do_calc, NULL, NULL, NULL, file);
+    in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, NULL, file);
     fprintf(file, "mov rax, 60\n");
     fprintf(file,  "mov rdi, 0\n");
     fprintf(file, "syscall\n");
@@ -439,6 +526,11 @@ void free_tables(SymbolsTable** tables, int length){
     free(tables); ///< Free the array of symbol tables.
 }
 
+/**
+ * Prints the type based on the given integer value.
+ *
+ * @param type The integer value representing the type.
+ */
 void print_type(int type){
     switch(type){
         case 1:
@@ -448,8 +540,7 @@ void print_type(int type){
             printf("It's a char\n");
             break;
         default:
-            printf("Unknow type\n");
-
+            printf("Unknown type\n");
     }
 }
 
