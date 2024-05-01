@@ -1,15 +1,17 @@
 section .text
-global getint
-getint:
-    push ebp
-    mov ebp, esp
-    sub esp, 4
-    mov eax, 3
-    mov [ebp-4], eax
-    mov eax, [ebp+8]
-    mov [eax], [ebp-4]
-    mov eax, [ebp+8]
-    mov eax, [eax]
-    mov esp, ebp
-    pop ebp
+section .data
+number: dd 0
+buffer: db "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"
+global _getint
+
+_getint:
+    mov rax, 0
+    mov rdi, 0
+    mov rsi, buffer
+    mov rdx, 4
+    syscall
+    
+    mov rax, number
     ret
+
+transform:

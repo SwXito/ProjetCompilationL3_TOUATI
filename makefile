@@ -5,8 +5,12 @@ EXEC=tpcas
 SRC=src
 BIN=bin
 OBJ=obj
+ASM=nasm
+ANONYMOUS=assembly
 
 all: $(BIN)/$(EXEC)
+
+asm: $(BIN)/$(ANONYMOUS)
 
 bin:
 	mkdir -p bin
@@ -35,6 +39,15 @@ $(OBJ)/$(EXEC).yy.c: $(SRC)/$(EXEC).lex | obj
 
 $(OBJ)/tree.o: $(SRC)/tree.c $(SRC)/tree.h | obj
 	$(CC) -o $@ -c $< $(CFLAGS)
+
+$(BIN)/$(ANONYMOUS): $(OBJ)/_anonymous.o $(OBJ)/utils.o
+	gcc -o $@ $^ -nostartfiles -no-pie
+
+$(OBJ)/utils.o: utils.asm | obj
+	$(ASM) -f elf64 -o $@ $<
+
+$(OBJ)/_anonymous.o: _anonymous.asm | obj
+	$(ASM) -f elf64 -o $@ $<
 
 $(OBJ)/%.o: $(SRC)/%.c $(SRC)/%.h | obj
 	$(CC) -o $@ -c $< $(CFLAGS)

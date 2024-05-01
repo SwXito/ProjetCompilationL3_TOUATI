@@ -95,4 +95,6 @@ void print_decl_functions(SymbolsTable **t, int count); ///< Function to print t
 
 void build_minimal_asm(Node *root); ///< Function to build minimal assembly code from the tree.
 
+void build_global_vars_asm(SymbolsTable *t); ///< Function to build assembly code for global variables.
+
 #endif

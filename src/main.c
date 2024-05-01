@@ -26,6 +26,7 @@ int main(int argc, char *argv[]){
     //in_depth_course(node, NULL, NULL, find_types, NULL, NULL);
 
     fill_global_vars(global_vars);
+    build_global_vars_asm(global_vars);
     decl_functions = fill_decl_functions(&count);
 
     required_checks(global_vars, decl_functions, count);

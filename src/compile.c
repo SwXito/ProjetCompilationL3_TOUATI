@@ -477,11 +477,28 @@ void find_types(Node *root){
 }
 
 /**
+ * Builds the assembly code for global variables.
+ * 
+ * @param t The symbols table containing the global variables.
+ */
+void build_global_vars_asm(SymbolsTable *t){
+    FILE * file = try(fopen("_anonymous.asm", "a"), NULL);
+    fprintf(file, "section .bss\n");
+    for(Table *current = t->first; current; current = current->next){
+        if(current->var.is_int)
+            fprintf(file, "%s: resd 1\n", current->var.ident);
+        else
+            fprintf(file, "%s: resb 1\n", current->var.ident);
+    }
+    try(fclose(file));
+}
+
+/**
  * @brief Builds minimal assembly code from a tree and writes it to a file.
  * @param root The root node of the tree.
  */
 void build_minimal_asm(Node *root){
-    FILE * file = try(fopen("_anonymous.asm", "w"), NULL);
+    FILE * file = try(fopen("_anonymous.asm", "a"), NULL);
     fprintf(file, "global _start\n");
     fprintf(file, ".text:\n");
     fprintf(file, "_start:\n");

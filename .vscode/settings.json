@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "random": "c"
+        "build.h": "c",
+        "compile.h": "c"
     }
 }
