@@ -15,6 +15,12 @@
 #include "tree.h"
 #include "../obj/tpcas.h"
 
+#define SEMANTIC_ERROR 2
+#define INT 1
+#define CHAR 0
+#define VOID -1
+#define UNKNOWN -2
+
 extern Node *node;
 
 /**
@@ -27,6 +33,7 @@ typedef struct elem{
     char *ident;  ///< Identifier of the element.
     int is_int;   ///< Flag indicating if the element is an integer.
     int deplct;   ///< Displacement of the element.
+    int lineno;   ///< Line number of the element.
 }Element;
 
 /**
@@ -77,7 +84,9 @@ void free_table(Table *t); ///< Function to free the memory allocated for the ta
 
 int do_calc(Node *root, FILE * file); ///< Function to perform calculations on the tree nodes.
 
-int calc_type(Node *root);
+int expression_type(Node *root);
+
+void semantic_check(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count); ///< Function to perform semantic checks on the tree.
 
 void free_symbols_table(SymbolsTable *t); ///< Function to free the memory allocated for the symbol table.
 

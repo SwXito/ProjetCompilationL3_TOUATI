@@ -18,5 +18,6 @@ Thumbs.db
 # tmp_files
 tmp/
 #ide_files
+.vscode/settings.json
 .vscode/
 .idea/

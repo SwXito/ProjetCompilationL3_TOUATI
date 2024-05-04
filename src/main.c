@@ -11,7 +11,6 @@ extern Node *node;
  */
 
 static void required_checks(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count){
-    check_decl(global_vars, decl_functions, count, node->firstChild->nextSibling);
     check_affectations(node, global_vars, decl_functions, count);
 }
 
@@ -33,6 +32,8 @@ int main(int argc, char *argv[]){
 
     if(err == 0)
         parse_args(argc, argv, node, global_vars, decl_functions, count);
+
+    semantic_check(global_vars, decl_functions, count);
 
     deleteTree(node);
     free_symbols_table(global_vars);

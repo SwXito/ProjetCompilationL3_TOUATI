@@ -5,7 +5,7 @@
     char letter, digit, punct;
 	int uppercase;
     
-int main(void)  {
+int main(char w)  {
    char w;
    int test;
    char t;

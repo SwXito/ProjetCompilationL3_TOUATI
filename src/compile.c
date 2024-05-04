@@ -18,7 +18,7 @@ int check_in_table(SymbolsTable t, char *s){
  *
  * @param var_name The name of the variable to search for.
  * @param table The symbols table to search in.
- * @return The type of the variable (0 for int, 1 for float), or -1 if the variable is not found.
+ * @return The type of the variable (0 for char, 1 for int), or -1 if the variable is not found.
  */
 int find_type_in_sb(char *var_name, SymbolsTable *table){
     for (Table *current = table->first; current; current = current->next)
@@ -52,8 +52,10 @@ void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int co
                     is_declared = 1;
             if (check_in_table(*global_vars, s))
                 is_declared = 1;
-            if (!is_declared)
+            if (!is_declared){
                 fprintf(stderr, "Error: variable %s is not declared\n", s);
+                exit(SEMANTIC_ERROR);
+            }
         }
         check_decl(global_vars, decl_functions, count, FIRSTCHILD(root));
         check_decl(global_vars, decl_functions, count, root->nextSibling);
@@ -78,10 +80,10 @@ SymbolsTable* creatSymbolsTable(){
  */
 static int check_type(char * type){
     if(strcmp(type, "char") == 0)
-        return 0;
+        return CHAR;
     if(strcmp(type, "int") == 0)
-        return 1;
-    return -1;
+        return INT;
+    return UNKNOWN;
 }
 
 /**
@@ -92,17 +94,17 @@ static int check_type(char * type){
  * @param decl_functs An array of symbol tables for declared functions.
  * @param count The number of declared functions.
  * @return The type of the node:
- *         - 1 if the node is a number.
- *         - 0 if the node is a character.
+ *         - INT if the node is a number.
+ *         - CHAR if the node is a character.
  *         - The type of the variable if the node is a variable.
- *         - -1 if the node is of an unknown type.
+ *         - UNKNOWN if the node is of an unknown type.
  */
 static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
     switch(root->label){
         case Num:
-            return 1;
+            return INT;
         case Character:
-            return 0;
+            return CHAR;
         case Variable:;
             int type;
             if((type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars)) == -1){
@@ -113,7 +115,7 @@ static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable *
             else
                 return type;
         default:
-            return -1;
+            return UNKNOWN;
     }
 }
 
@@ -128,14 +130,14 @@ static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable *
  */
 static void check_affect(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
     if(root){
-        if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, count) == 0){ //If the firstChild is a char
+        if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, count) == CHAR){ //If the firstChild is a char
             switch(SECONDCHILD(root)->label){ //Check if the second child is an int
                 case Expression:
-                    if(calc_type(SECONDCHILD(root)))
-                        fprintf(stderr, "Warning, You are putting a char in an int\n");
+                    if(expression_type(SECONDCHILD(root)) == INT)
+                        fprintf(stderr, "Warning line : %d, You are putting a char in an int\n", root->lineno);
                     break;
                 default:
-                    if(check_node_type(SECONDCHILD(root), global_vars, decl_functs, count))
+                    if(check_node_type(SECONDCHILD(root), global_vars, decl_functs, count) == INT)
                         fprintf(stderr, "Warning, You are putting a char in an int\n");
             }
         }
@@ -172,12 +174,13 @@ static void add_to_table(SymbolsTable *t, Node *root, char * type){
 
         table->var.ident = strdup(root->ident);
         table->var.is_int = check_type(type);
+        table->var.lineno = root->lineno;
 
         table->var.deplct = t->offset;
         if(table->var.is_int)
-            t->offset += 4;
+            t->offset += 4; //4 bytes for an int
         else
-            t->offset += 1;
+            t->offset += 1; //1 byte for a char
         table->next = t->first;
         t->first = table;
     }
@@ -440,30 +443,30 @@ static int max(int a, int b){
  * @param root The root node of the syntax tree.
  * @return The type of the node. Returns -2 if the node is NULL.
  */
-int calc_type(Node *root){
+int expression_type(Node *root){
     if(root){
         int type;
         switch(root->label){
             case Num:
-                type =  1;
+                type = INT;
                 break;
             case Character:
-                type =  0;
+                type = CHAR;
                 break;
             case Function:
                 if(!strcmp(FIRSTCHILD(root)->ident, "getchar"))
-                    type = 0;
+                    type = CHAR;
                 else if(!strcmp(FIRSTCHILD(root)->ident, "getint"))
-                    type = 1;
+                    type = INT;
                 else
-                    type = -1;
+                    type = UNKNOWN;
                 break;
             default:
-                type = -1;
+                type = UNKNOWN;
         }
-        return max(type, max(calc_type(FIRSTCHILD(root)), calc_type(root->nextSibling)));
+        return max(type, max(expression_type(FIRSTCHILD(root)), expression_type(root->nextSibling)));
     }
-    return -2;
+    return UNKNOWN;
 }
 
 /**
@@ -473,7 +476,7 @@ int calc_type(Node *root){
  */
 void find_types(Node *root){
     if(root->label == Expression)
-        print_type(calc_type(FIRSTCHILD(root)));
+        print_type(expression_type(FIRSTCHILD(root)));
 }
 
 /**
@@ -507,6 +510,93 @@ void build_minimal_asm(Node *root){
     fprintf(file,  "mov rdi, 0\n");
     fprintf(file, "syscall\n");
     try(fclose(file));
+}
+
+static void check_different_idents(SymbolsTable *first, SymbolsTable *second){
+    for(Table *current = first->first; current; current = current->next)
+        if(check_in_table(*second, current->var.ident)){
+            fprintf(stderr, "Error at line %d: variable %s is declared in the function and is a parameter\n", current->var.lineno, current->var.ident);
+            exit(SEMANTIC_ERROR);
+        }
+}
+
+static void check_return_type(Node *root, int type){
+    if(root){
+        if(root->label == Return){
+            if(expression_type(FIRSTCHILD(root)) != type){
+                if(type == INT)
+                    fprintf(stderr, "Error at line %d: return type is not int\n", root->lineno);
+                else
+                    fprintf(stderr, "Error at line %d: return type is not char\n", root->lineno);
+                exit(SEMANTIC_ERROR);
+            }
+        }
+        check_return_type(FIRSTCHILD(root), type);
+        check_return_type(root->nextSibling, type);
+    }
+}
+
+static void check_idents(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count){
+    Node *current = FIRSTCHILD(SECONDCHILD(node));
+    for(int i = 0; i < count; i += 2)
+        check_different_idents(decl_functions[i], decl_functions[i+1]);
+    check_decl(global_vars, decl_functions, count, node->firstChild->nextSibling);
+    while(current){
+        if(current->label == Function){
+            if(check_in_table(*global_vars, SECONDCHILD(current)->ident)){
+                fprintf(stderr, "Error at line %d: function %s has the same name as a global variable\n", SECONDCHILD(current)->lineno, SECONDCHILD(current)->ident);
+                exit(SEMANTIC_ERROR);
+            }
+        }
+        current = current->nextSibling;
+    }
+}
+
+static int get_function_type(Node *root){
+    if(!strcmp(FIRSTCHILD(root)->ident, "char"))
+        return CHAR;
+    else if(!strcmp(FIRSTCHILD(root)->ident, "int"))
+        return INT;
+    else if(!strcmp(FIRSTCHILD(root)->ident, "void"))
+        return VOID;
+    else{
+        fprintf(stderr, "Error at line %d: unknown function type\n", FIRSTCHILD(root)->lineno);
+        exit(SEMANTIC_ERROR);
+    }
+}
+
+static void check_existing_main(Node *root){
+    int exist = 0;
+    while(root){
+        if(root->label == Function && !strcmp(SECONDCHILD(root)->ident, "main"))
+            exist = 1;
+        root = root->nextSibling;
+    }
+    if(!exist){
+        fprintf(stderr, "Error: main function not found\n");
+        exit(SEMANTIC_ERROR);
+    }
+}
+
+static void check_functions(){
+    Node *current = FIRSTCHILD(SECONDCHILD(node));
+    int function_type; //-2 Unknown, -1 void, 0 for char, 1 for int
+    check_existing_main(current);
+    while(current){
+        if(current->label == Function){
+            function_type = get_function_type(current);
+            check_return_type(FIRSTCHILD(FOURTHCHILD(current)), function_type);
+        }
+        current = current->nextSibling;
+    }
+}
+
+/**
+ * @brief Checks the semantics of the program.
+ */
+void semantic_check(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count){
+    check_idents(global_vars, decl_functions, count);
+    check_functions();
 }
 
 /**
@@ -550,10 +640,10 @@ void free_tables(SymbolsTable** tables, int length){
  */
 void print_type(int type){
     switch(type){
-        case 1:
+        case INT:
             printf("It's an int\n");
             break;
-        case 0:
+        case CHAR:
             printf("It's a char\n");
             break;
         default:
@@ -588,11 +678,11 @@ void print_global_vars(SymbolsTable *t){
  */
 void print_decl_functions(SymbolsTable **t, int count){
     printf("Functions:\n"); ///< Print a header for the functions.
-    for(int i = 0; i < count; ++i){
-        printf("\nFunction %d :\n", i+1); ///< Print the function number.
+    for(int i = 0; i < count; i += 2){
+        printf("\nFunction %d :\n", i/2 + 1); ///< Print the function number.
         printf("\nParameters :\n"); ///< Print a header for the parameters.
-        print_table(t[i * 2]->first); ///< Print the first table in the symbol table at index i * 2.
+        print_table(t[i]->first); ///< Print the first table in the symbol table at index i * 2.
         printf("\nVariables :\n"); ///< Print a header for the variables.
-        print_table(t[i * 2 + 1]->first); ///< Print the first table in the symbol table at index i * 2 + 1.
+        print_table(t[i + 1]->first); ///< Print the first table in the symbol table at index i * 2 + 1.
     }
 }
