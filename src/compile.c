@@ -13,6 +13,17 @@ int check_in_table(SymbolsTable t, char *s){
     return 0;
 }
 
+int count_functions(){
+    Node *current = FIRSTCHILD(SECONDCHILD(node));
+    int nb_functions = 0;
+    while(current){
+        if(current->label == Function)
+            nb_functions++;
+        current = current->nextSibling;
+    }
+    return nb_functions;
+}
+
 /**
  * Finds the type of a variable in the given symbols table.
  *
@@ -39,15 +50,15 @@ int find_type_in_sb(char *var_name, SymbolsTable *table){
  * @param global_vars A pointer to the symbol table of global variables.
  * @param decl_functions A pointer to an array of symbol tables for declared functions. Each function has two symbol tables,
  * one for parameters and one for local variables, stored consecutively in the array.
- * @param count The number of declared functions. This is used to iterate over 'decl_functions'.
+ * @param nb_functions The number of declared functions. This is used to iterate over 'decl_functions'.
  * @param root A pointer to the root of the AST to check.
  */
-void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count, Node *root){
+void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb_functions, Node *root){
     if(root) {
         if (root->label == Variable) {
             int is_declared = 0;
             char *s = FIRSTCHILD(root)->label == Array ? FIRSTCHILD(root)->firstChild->ident : FIRSTCHILD(root)->ident;
-            for (int i = 0; i < count * 2; ++i)
+            for (int i = 0; i < nb_functions * 2; ++i)
                 if (check_in_table(*decl_functions[i], s))
                     is_declared = 1;
             if (check_in_table(*global_vars, s))
@@ -57,8 +68,8 @@ void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int co
                 exit(SEMANTIC_ERROR);
             }
         }
-        check_decl(global_vars, decl_functions, count, FIRSTCHILD(root));
-        check_decl(global_vars, decl_functions, count, root->nextSibling);
+        check_decl(global_vars, decl_functions, nb_functions, FIRSTCHILD(root));
+        check_decl(global_vars, decl_functions, nb_functions, root->nextSibling);
     }
 }
 
@@ -92,14 +103,14 @@ static int check_type(char * type){
  * @param root The root node of the abstract syntax tree.
  * @param global_vars The symbol table for global variables.
  * @param decl_functs An array of symbol tables for declared functions.
- * @param count The number of declared functions.
+ * @param nb_functions The number of declared functions.
  * @return The type of the node:
  *         - INT if the node is a number.
  *         - CHAR if the node is a character.
  *         - The type of the variable if the node is a variable.
  *         - UNKNOWN if the node is of an unknown type.
  */
-static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
+static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int nb_functions){
     switch(root->label){
         case Num:
             return INT;
@@ -108,7 +119,7 @@ static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable *
         case Variable:;
             int type;
             if((type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars)) == -1){
-                for(int i = 0; i < count * 2; ++i)
+                for(int i = 0; i < nb_functions * 2; ++i)
                     if((type = find_type_in_sb(FIRSTCHILD(root)->ident, decl_functs[i])) >= 0)
                         return type;
             }
@@ -126,18 +137,18 @@ static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable *
  * @param root The root node of the syntax tree.
  * @param global_vars The symbol table for global variables.
  * @param decl_functs The array of symbol tables for declared functions.
- * @param count The number of declared functions.
+ * @param nb_functions The number of declared functions.
  */
-static void check_affect(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
+static void check_affect(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int nb_functions){
     if(root){
-        if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, count) == CHAR){ //If the firstChild is a char
+        if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, nb_functions) == CHAR){ //If the firstChild is a char
             switch(SECONDCHILD(root)->label){ //Check if the second child is an int
                 case Expression:
                     if(expression_type(SECONDCHILD(root)) == INT)
                         fprintf(stderr, "Warning line : %d, You are putting a char in an int\n", root->lineno);
                     break;
                 default:
-                    if(check_node_type(SECONDCHILD(root), global_vars, decl_functs, count) == INT)
+                    if(check_node_type(SECONDCHILD(root), global_vars, decl_functs, nb_functions) == INT)
                         fprintf(stderr, "Warning, You are putting a char in an int\n");
             }
         }
@@ -150,15 +161,15 @@ static void check_affect(Node *root, SymbolsTable* global_vars, SymbolsTable **d
  * @param root The root node of the syntax tree.
  * @param global_vars The symbol table for global variables.
  * @param decl_functs The symbol table for declared functions.
- * @param count The count of declared functions.
+ * @param nb_functions The nb_functions of declared functions.
  */
-void check_affectations(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count){
+void check_affectations(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int nb_functions){
     if(root){
         if(root->label == Equals){
-            check_affect(root, global_vars, decl_functs, count);
+            check_affect(root, global_vars, decl_functs, nb_functions);
         }
-        check_affectations(FIRSTCHILD(root), global_vars, decl_functs, count);
-        check_affectations(root->nextSibling, global_vars, decl_functs, count);
+        check_affectations(FIRSTCHILD(root), global_vars, decl_functs, nb_functions);
+        check_affectations(root->nextSibling, global_vars, decl_functs, nb_functions);
     }
 }
 
@@ -229,23 +240,23 @@ static SymbolsTable* fill_func_vars(Node *root){
  * @brief Fills a symbol table with functions from a given node.
  * @param t The symbol table to fill.
  * @param root The node to get functions from.
- * @param count A pointer to the count of functions.
+ * @param nb_functions A pointer to the nb_functions of functions.
  */
-void fill_table_fcts(SymbolsTable **t, Node *root, int *count){
+void fill_table_fcts(SymbolsTable **t, Node *root, int *nb_functions){
     Node * tmp = root;
     if(tmp->label == Function){
         if(!strcmp(SECONDCHILD(tmp)->ident, "main"))
             build_minimal_asm(tmp);
-        t[(*count) * 2] = fill_func_parameters_table(tmp);
-        t[(*count) * 2 + 1] = fill_func_vars(tmp);
-        (*count)++;
+        t[(*nb_functions) * 2] = fill_func_parameters_table(tmp);
+        t[(*nb_functions) * 2 + 1] = fill_func_vars(tmp);
+        (*nb_functions)++;
     }
 }
 
 /**
  * @brief Fills a symbol table with function parameters from a given node.
  * @param root The node to get function parameters from.
- * @param count A pointer to the count of function parameters.
+ * @param nb_functions A pointer to the nb_functions of function parameters.
  * @return A pointer to the filled symbol table.
  */
 SymbolsTable* fill_func_parameters_table(Node *root){
@@ -256,13 +267,14 @@ SymbolsTable* fill_func_parameters_table(Node *root){
 
 /**
  * @brief Fills a symbol table with declared functions.
- * @param count A pointer to the count of declared functions.
+ * @param nb_functions A pointer to the nb_functions of declared functions.
  * @return A pointer to the filled symbol table.
  */
-SymbolsTable** fill_decl_functions(int *count){
-    SymbolsTable** all_tables = (SymbolsTable**) try(malloc(sizeof(SymbolsTable*) * 20), NULL);
+SymbolsTable** fill_decl_functions(int nb_func){
+    int nb_functions = 0;
+    SymbolsTable** all_tables = (SymbolsTable**) try(malloc(sizeof(SymbolsTable*) * (nb_func * 2)), NULL);
     if(FIRSTCHILD(node))
-        in_width_course(SECONDCHILD(node)->firstChild, fill_table_fcts, all_tables, count);
+        in_width_course(SECONDCHILD(node)->firstChild, fill_table_fcts, all_tables, &nb_functions);
     return all_tables;
 }
 
@@ -303,12 +315,12 @@ void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(Sym
  * @param node The root node of the tree.
  * @param func A function to fill the symbol table.
  * @param t The symbol table to fill.
- * @param count A pointer to the count of nodes.
+ * @param nb_functions A pointer to the nb_functions of nodes.
  */
-void in_width_course(Node * root, void (*func)(SymbolsTable **, Node *, int *), SymbolsTable **t, int *count){
+void in_width_course(Node * root, void (*func)(SymbolsTable **, Node *, int *), SymbolsTable **t, int *nb_functions){
     if(root){
-        func(t, root, count);
-        in_width_course(root->nextSibling, func, t, count);
+        func(t, root, nb_functions);
+        in_width_course(root->nextSibling, func, t, nb_functions);
     }
 }
 
@@ -466,7 +478,7 @@ int expression_type(Node *root){
         }
         return max(type, max(expression_type(FIRSTCHILD(root)), expression_type(root->nextSibling)));
     }
-    return UNKNOWN;
+    return VOID;
 }
 
 /**
@@ -526,8 +538,12 @@ static void check_return_type(Node *root, int type){
             if(expression_type(FIRSTCHILD(root)) != type){
                 if(type == INT)
                     fprintf(stderr, "Error at line %d: return type is not int\n", root->lineno);
-                else
+                else if(type == CHAR)
                     fprintf(stderr, "Error at line %d: return type is not char\n", root->lineno);
+                else if(type == VOID)
+                    fprintf(stderr, "Error at line %d: return type is not void\n", root->lineno);
+                else
+                    fprintf(stderr, "Error at line %d: unknown return type\n", root->lineno);
                 exit(SEMANTIC_ERROR);
             }
         }
@@ -536,11 +552,11 @@ static void check_return_type(Node *root, int type){
     }
 }
 
-static void check_idents(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count){
+static void check_idents(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb_functions){
     Node *current = FIRSTCHILD(SECONDCHILD(node));
-    for(int i = 0; i < count; i += 2)
+    for(int i = 0; i < nb_functions; i += 2)
         check_different_idents(decl_functions[i], decl_functions[i+1]);
-    check_decl(global_vars, decl_functions, count, node->firstChild->nextSibling);
+    check_decl(global_vars, decl_functions, nb_functions, node->firstChild->nextSibling);
     while(current){
         if(current->label == Function){
             if(check_in_table(*global_vars, SECONDCHILD(current)->ident)){
@@ -568,8 +584,13 @@ static int get_function_type(Node *root){
 static void check_existing_main(Node *root){
     int exist = 0;
     while(root){
-        if(root->label == Function && !strcmp(SECONDCHILD(root)->ident, "main"))
+        if(root->label == Function && !strcmp(SECONDCHILD(root)->ident, "main")){
             exist = 1;
+            if(get_function_type(root) != INT){
+                fprintf(stderr, "Error at line %d: main function must return an int\n", SECONDCHILD(root)->lineno);
+                exit(SEMANTIC_ERROR);
+            }
+        }
         root = root->nextSibling;
     }
     if(!exist){
@@ -591,12 +612,23 @@ static void check_functions(){
     }
 }
 
+static void check_types(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb_functions){
+    check_affectations(node, global_vars, decl_functions, nb_functions);
+    return;
+}
+
+static void check_arrays(){
+    return;
+}
+
 /**
  * @brief Checks the semantics of the program.
  */
-void semantic_check(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count){
-    check_idents(global_vars, decl_functions, count);
+void semantic_check(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb_functions){
+    check_idents(global_vars, decl_functions, nb_functions);
     check_functions();
+    check_types(global_vars, decl_functions, nb_functions);
+    check_arrays();
 }
 
 /**
@@ -674,11 +706,11 @@ void print_global_vars(SymbolsTable *t){
 /**
  * @brief Prints the declared functions in an array of symbol tables.
  * @param t The array of symbol tables to print from.
- * @param count The number of symbol tables in the array.
+ * @param nb_functions The number of symbol tables in the array.
  */
-void print_decl_functions(SymbolsTable **t, int count){
+void print_decl_functions(SymbolsTable **t, int nb_functions){
     printf("Functions:\n"); ///< Print a header for the functions.
-    for(int i = 0; i < count; i += 2){
+    for(int i = 0; i < nb_functions; i += 2){
         printf("\nFunction %d :\n", i/2 + 1); ///< Print the function number.
         printf("\nParameters :\n"); ///< Print a header for the parameters.
         print_table(t[i]->first); ///< Print the first table in the symbol table at index i * 2.

@@ -15,6 +15,7 @@
 #include "tree.h"
 #include "../obj/tpcas.h"
 
+#define EXIT_ERROR 3
 #define SEMANTIC_ERROR 2
 #define INT 1
 #define CHAR 0
@@ -58,6 +59,8 @@ typedef struct{
 
 int check_in_table(SymbolsTable t, char *s); ///< Function to check_in_table if a symbol exists in the table.
 
+int count_functions(); ///< Function to count the number of functions in the tree.
+
 int find_type_in_sb(char *var, SymbolsTable *table);
 
 void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count, Node *root); ///< Function to check_in_table if a symbol exists in the table of declared functions.
@@ -74,7 +77,7 @@ SymbolsTable* fill_func_parameters_table(Node *root); ///< Function to fill the 
 
 void fill_global_vars(SymbolsTable* t); ///< Function to fill the table with global variables.
 
-SymbolsTable** fill_decl_functions(int *count); ///< Function to fill the table with declared functions.
+SymbolsTable** fill_decl_functions(int nb_func); ///< Function to fill the table with declared functions.
 
 void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), void (*check)(Node *), SymbolsTable *t, FILE * file); ///< Function to traverse the tree in depth.
 

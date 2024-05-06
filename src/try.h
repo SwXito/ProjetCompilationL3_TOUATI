@@ -18,7 +18,7 @@
               "Call \033[1;36m%s\033[0m failed:\n"                    \
               "\033[1;31m%s\033[0m\n",                                \
               __FILE__, __LINE__, #EXPR, strerror(errno));            \
-      _exit(EXIT_FAILURE);                                            \
+      _exit(EXIT_ERROR);                                              \
     }                                                                 \
     _retval_;                                                         \
   })                                                                  \
