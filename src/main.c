@@ -21,7 +21,7 @@ int main(int argc, char *argv[]){
 
     fill_global_vars(global_vars);
     build_global_vars_asm(global_vars);
-    decl_functions = fill_decl_functions(nb_func);
+    decl_functions = fill_decl_functions(nb_func, global_vars);
 
     if(err == 0)
         parse_args(argc, argv, node, global_vars, decl_functions, nb_func);

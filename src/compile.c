@@ -238,15 +238,16 @@ static SymbolsTable* fill_func_vars(Node *root){
 
 /**
  * @brief Fills a symbol table with functions from a given node.
+ * @param global_vars The symbol table for global variables.
  * @param t The symbol table to fill.
  * @param root The node to get functions from.
  * @param nb_functions A pointer to the nb_functions of functions.
  */
-void fill_table_fcts(SymbolsTable **t, Node *root, int *nb_functions){
+void fill_table_fcts(SymbolsTable **t, SymbolsTable *global_vars, Node *root, int *nb_functions){
     Node * tmp = root;
     if(tmp->label == Function){
         if(!strcmp(SECONDCHILD(tmp)->ident, "main"))
-            build_minimal_asm(tmp);
+            build_minimal_asm(tmp, global_vars);
         t[(*nb_functions) * 2] = fill_func_parameters_table(tmp);
         t[(*nb_functions) * 2 + 1] = fill_func_vars(tmp);
         (*nb_functions)++;
@@ -270,11 +271,11 @@ SymbolsTable* fill_func_parameters_table(Node *root){
  * @param nb_functions A pointer to the nb_functions of declared functions.
  * @return A pointer to the filled symbol table.
  */
-SymbolsTable** fill_decl_functions(int nb_func){
+SymbolsTable** fill_decl_functions(int nb_func, SymbolsTable *global_vars){
     int nb_functions = 0;
     SymbolsTable** all_tables = (SymbolsTable**) try(malloc(sizeof(SymbolsTable*) * (nb_func * 2)), NULL);
     if(FIRSTCHILD(node))
-        in_width_course(SECONDCHILD(node)->firstChild, fill_table_fcts, all_tables, &nb_functions);
+        in_width_course(SECONDCHILD(node)->firstChild, fill_table_fcts, all_tables, global_vars, &nb_functions);
     return all_tables;
 }
 
@@ -296,10 +297,10 @@ void fill_global_vars(SymbolsTable* t){
  * @param t The symbol table to fill.
  * @param file The file to write to.
  */
-void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(SymbolsTable *, Node *), void (*check)(Node *), SymbolsTable *t, FILE * file){
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymbolsTable *), void (*table)(SymbolsTable *, Node *), void (*check)(Node *), SymbolsTable *t, FILE * file){
     if(root) {
         if (calc)
-            if (calc(root, file))
+            if (calc(root, file, t))
                 return;
         if (table)
             table(t, root);
@@ -317,10 +318,10 @@ void in_depth_course(Node * root, int (*calc)(Node *, FILE *), void (*table)(Sym
  * @param t The symbol table to fill.
  * @param nb_functions A pointer to the nb_functions of nodes.
  */
-void in_width_course(Node * root, void (*func)(SymbolsTable **, Node *, int *), SymbolsTable **t, int *nb_functions){
+void in_width_course(Node * root, void (*func)(SymbolsTable **, SymbolsTable *, Node *, int *), SymbolsTable **t, SymbolsTable *global_vars, int *nb_functions){
     if(root){
-        func(t, root, nb_functions);
-        in_width_course(root->nextSibling, func, t, nb_functions);
+        func(t, global_vars, root, nb_functions);
+        in_width_course(root->nextSibling, func, t, global_vars, nb_functions);
     }
 }
 
@@ -355,15 +356,15 @@ static int calc_one_child(FILE *file){
  * @param file The file to write the assembly instructions to.
  * @return The result of the addition or subtraction operation.
  */
-static int addsub_calc(Node *root, FILE * file){
+static int addsub_calc(Node *root, FILE * file, SymbolsTable *global_vars){
     int left_op, right_op;
     if(SECONDCHILD(root)){
-        left_op = do_calc(FIRSTCHILD(root), file);
-        right_op = do_calc(SECONDCHILD(root), file);
+        left_op = get_value(FIRSTCHILD(root), file, global_vars);
+        right_op = get_value(SECONDCHILD(root), file, global_vars);
     }
     else{
         left_op = calc_one_child(file);
-        right_op = do_calc(FIRSTCHILD(root), file);
+        right_op = get_value(FIRSTCHILD(root), file, global_vars);
     }
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '+'){
@@ -384,9 +385,9 @@ static int addsub_calc(Node *root, FILE * file){
  * @param file The file to write the assembly instructions to.
  * @return The result of the multiplication or division operation.
  */
-static int divstar_calc(Node *root, FILE * file){
-    int left_op = do_calc(FIRSTCHILD(root), file);
-    int right_op = do_calc(SECONDCHILD(root), file);
+static int divstar_calc(Node *root, FILE * file, SymbolsTable *global_vars){
+    int left_op = get_value(FIRSTCHILD(root), file, global_vars);
+    int right_op = get_value(SECONDCHILD(root), file, global_vars);
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '*'){
         fprintf(file, "imul rax, rcx\n");
@@ -413,24 +414,75 @@ static int num_calc(Node *root, FILE * file){
     return root->num;
 }
 
+static int ident_calc(Node *root, FILE * file, SymbolsTable *global_vars){
+    int offset = 0, type;
+    for(Table *current = global_vars->first; current; current = current->next)
+        if(!strcmp(current->var.ident, root->ident)){
+            offset = current->var.deplct;
+            type = current->var.is_int;
+        }
+    if(type == INT){
+        printf("Variable %s is an int\n", root->ident);
+        fprintf(file, "movsx rax, dword [global_vars + %d]\n", offset);
+        fprintf(file, "push rax\n");
+    }
+    else if (type == CHAR){
+        printf("Variable %s is a char\n", root->ident);
+        fprintf(file, "movsx rax, byte [global_vars + %d]\n", offset);
+        fprintf(file, "push rax\n");
+    }
+    else{
+        fprintf(stderr, "Error: unknown type\n");
+        exit(SEMANTIC_ERROR);
+    }
+    return 0;
+}
+
+static int character_calc(Node *root, FILE * file){
+    fprintf(file, "mov rax, %d\n", root->ident[1]);
+    fprintf(file, "push rax\n");
+    return root->ident[1];
+}
+
+int get_value(Node * root, FILE * file, SymbolsTable * global_vars){
+    switch(root->label){
+        case Variable:
+            return ident_calc(FIRSTCHILD(root), file, global_vars);
+        case Num:
+            return num_calc(root, file);
+        case Character:
+            return character_calc(root, file);
+        case Expression:;
+            if(FIRSTCHILD(root)->label == Addsub || FIRSTCHILD(root)->label == Divstar)
+                return do_calc(FIRSTCHILD(root), file, global_vars);
+            int type = expression_type(root);
+            if(type == INT)
+                return get_value(FIRSTCHILD(root), file, global_vars);
+            else if(type == CHAR)
+                return ident_calc(FIRSTCHILD(root), file, global_vars);
+            else{
+                fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
+                exit(SEMANTIC_ERROR);
+            }
+        default:
+            fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
+            exit(SEMANTIC_ERROR);
+    }
+}
+
 /**
  * @brief Performs calculations on a node and writes the result to a file.
  * @param root The node to perform calculations on.
  * @param file The file to write to.
+ * @param global_vars The symbol table for global variables.
  * @return The result of the calculation.
  */
-int do_calc(Node *root, FILE * file){
+int do_calc(Node *root, FILE * file, SymbolsTable *global_vars){
     switch(root->label){
-        case Return:
-            return -1;
-        case Array:
-            return -1;
         case Addsub:
-            return addsub_calc(root, file);
+            return addsub_calc(root, file, global_vars);
         case Divstar:
-            return divstar_calc(root, file);
-        case Num:
-            return num_calc(root, file);
+            return divstar_calc(root, file, global_vars);
         default:
             return 0;
     }
@@ -497,14 +549,12 @@ void find_types(Node *root){
  * @param t The symbols table containing the global variables.
  */
 void build_global_vars_asm(SymbolsTable *t){
-    FILE * file = try(fopen("_anonymous.asm", "a"), NULL);
+    FILE * file = try(fopen("_anonymous.asm", "w"), NULL);
+    int size = 0;
     fprintf(file, "section .bss\n");
-    for(Table *current = t->first; current; current = current->next){
-        if(current->var.is_int)
-            fprintf(file, "%s: resd 1\n", current->var.ident);
-        else
-            fprintf(file, "%s: resb 1\n", current->var.ident);
-    }
+    for(Table *current = t->first; current; current = current->next)
+        size += current->var.is_int ? 4 : 1;
+    fprintf(file, "global_vars resb %d\n", size);
     try(fclose(file));
 }
 
@@ -512,12 +562,12 @@ void build_global_vars_asm(SymbolsTable *t){
  * @brief Builds minimal assembly code from a tree and writes it to a file.
  * @param root The root node of the tree.
  */
-void build_minimal_asm(Node *root){
+void build_minimal_asm(Node *root, SymbolsTable *global_vars){
     FILE * file = try(fopen("_anonymous.asm", "a"), NULL);
     fprintf(file, "global _start\n");
     fprintf(file, ".text:\n");
     fprintf(file, "_start:\n");
-    in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, NULL, file);
+    in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, global_vars, file);
     fprintf(file, "mov rax, 60\n");
     fprintf(file,  "mov rdi, 0\n");
     fprintf(file, "syscall\n");
@@ -678,6 +728,8 @@ void print_type(int type){
         case CHAR:
             printf("It's a char\n");
             break;
+        case VOID:
+            printf("It's a void\n");
         default:
             printf("Unknown type\n");
     }
