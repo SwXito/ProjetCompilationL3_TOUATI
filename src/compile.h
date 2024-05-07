@@ -57,43 +57,43 @@ typedef struct table{
 typedef struct{
   int offset;       ///< Offset in the symbol table.
   Table* first;     ///< Pointer to the first table.
-}SymbolsTable;
+}SymTabs;
 
 int count_functions(); ///< Function to count the number of functions in the tree.
 
-int find_type_in_sb(char *var, SymbolsTable *table); ///< Function to find the type of a variable in the symbol table.
+int find_type_in_sb(char *var, SymTabs *table); ///< Function to find the type of a variable in the symbol table.
 
-SymbolsTable* creatSymbolsTable(); ///< Function to create a new symbol table.
+SymTabs* creatSymbolsTable(); ///< Function to create a new symbol table.
 
-int check_in_table(SymbolsTable t, char *s); ///< Function to check_in_table if a symbol exists in the table.
+int check_in_table(SymTabs t, char *s); ///< Function to check_in_table if a symbol exists in the table.
 
-void fill_table_vars(SymbolsTable* t, Node *root); ///< Function to fill the table with variables.
+void fill_table_vars(SymTabs* t, Node *root); ///< Function to fill the table with variables.
 
-void fill_table_fcts(SymbolsTable **t, SymbolsTable *global_vars, Node *root, int *nb_functions); ///< Function to fill the table with functions.
+void fill_table_fcts(SymTabs **t, SymTabs *global_vars, Node *root, int *nb_functions); ///< Function to fill the table with functions.
 
-SymbolsTable* fill_func_parameters_table(Node *root); ///< Function to fill the table with function parameters.
+SymTabs* fill_func_parameters_table(Node *root); ///< Function to fill the table with function parameters.
 
-void fill_global_vars(SymbolsTable* t); ///< Function to fill the table with global variables.
+void fill_global_vars(SymTabs* t); ///< Function to fill the table with global variables.
 
-SymbolsTable** fill_decl_functions(int nb_func, SymbolsTable *global_vars); ///< Function to fill the table with declared functions.
+SymTabs** fill_decl_functions(int nb_func, SymTabs *global_vars); ///< Function to fill the table with declared functions.
 
-void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymbolsTable *), void (*table)(SymbolsTable *, Node *), void (*check)(Node *), SymbolsTable *t, FILE * file); ///< Function to traverse the tree in depth.
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymTabs *), void (*table)(SymTabs *, Node *), void (*check)(Node *), SymTabs *t, FILE * file); ///< Function to traverse the tree in depth.
 
-void in_width_course(Node * root, void (*func)(SymbolsTable **, SymbolsTable *, Node *, int *), SymbolsTable **t, SymbolsTable *global_vars, int *nb_functions); ///< Function to traverse the tree in width.
+void in_width_course(Node * root, void (*func)(SymTabs **, SymTabs *, Node *, int *), SymTabs **t, SymTabs *global_vars, int *nb_functions); ///< Function to traverse the tree in width.
 
 void free_table(Table *t); ///< Function to free the memory allocated for the table.
 
-void get_value(Node * root, FILE * file, SymbolsTable * global_vars); ///< Function to get the value of a node.
+void get_value(Node * root, FILE * file, SymTabs * global_vars); ///< Function to get the value of a node.
 
-int do_calc(Node *root, FILE * file, SymbolsTable *global_vars); ///< Function to perform calculations on the tree nodes.
+int do_calc(Node *root, FILE * file, SymTabs *global_vars); ///< Function to perform calculations on the tree nodes.
 
 int expression_type(Node *root); ///< Function to get the type of an expression.
 
 int get_function_type(Node *root); ///< Function to get the type of a function.
 
-void free_symbols_table(SymbolsTable *t); ///< Function to free the memory allocated for the symbol table.
+void free_symbols_table(SymTabs *t); ///< Function to free the memory allocated for the symbol table.
 
-void free_tables(SymbolsTable **tables, int length); ///< Function to free the memory allocated for the tables.
+void free_tables(SymTabs **tables, int length); ///< Function to free the memory allocated for the tables.
 
 void print_type(int type);
 
@@ -101,12 +101,12 @@ void find_types(Node *root);
 
 void print_table(Table *t); ///< Function to print the table.
 
-void print_global_vars(SymbolsTable *t); ///< Function to print the global variables.
+void print_global_vars(SymTabs *t); ///< Function to print the global variables.
 
-void print_decl_functions(SymbolsTable **t, int count); ///< Function to print the declared functions.
+void print_decl_functions(SymTabs **t, int count); ///< Function to print the declared functions.
 
-void build_minimal_asm(Node *root, SymbolsTable *global_vars); ///< Function to build minimal assembly code from the tree.
+void build_minimal_asm(Node *root, SymTabs *global_vars); ///< Function to build minimal assembly code from the tree.
 
-void build_global_vars_asm(SymbolsTable *t); ///< Function to build assembly code for global variables.
+void build_global_vars_asm(SymTabs *t); ///< Function to build assembly code for global variables.
 
 #endif

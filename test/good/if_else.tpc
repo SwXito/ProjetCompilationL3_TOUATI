@@ -1,4 +1,5 @@
 int a;
+int i;
 int main(void){
     if(i == 1){
         a = 2;

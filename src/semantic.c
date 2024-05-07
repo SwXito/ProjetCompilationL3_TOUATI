@@ -13,7 +13,7 @@
  *         - The type of the variable if the node is a variable.
  *         - UNKNOWN if the node is of an unknown type.
  */
-static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int nb_functions){
+static int check_node_type(Node *root, SymTabs* global_vars, SymTabs **decl_functs, int nb_functions){
     switch(root->label){
         case Num:
             return INT;
@@ -42,7 +42,7 @@ static int check_node_type(Node *root, SymbolsTable* global_vars, SymbolsTable *
  * @param decl_functs The array of symbol tables for declared functions.
  * @param nb_functions The number of declared functions.
  */
-static void check_affect(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int nb_functions){
+static void check_affect(Node *root, SymTabs* global_vars, SymTabs **decl_functs, int nb_functions){
     if(root){
         if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, nb_functions) == CHAR){ //If the firstChild is a char
             switch(SECONDCHILD(root)->label){ //Check if the second child is an int
@@ -66,7 +66,7 @@ static void check_affect(Node *root, SymbolsTable* global_vars, SymbolsTable **d
  * @param decl_functs The symbol table for declared functions.
  * @param nb_functions The nb_functions of declared functions.
  */
-void check_affectations(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int nb_functions){
+void check_affectations(Node *root, SymTabs* global_vars, SymTabs **decl_functs, int nb_functions){
     if(root){
         if(root->label == Equals){
             check_affect(root, global_vars, decl_functs, nb_functions);
@@ -91,7 +91,7 @@ void check_affectations(Node *root, SymbolsTable* global_vars, SymbolsTable **de
  * @param nb_functions The number of declared functions. This is used to iterate over 'decl_functions'.
  * @param root A pointer to the root of the AST to check.
  */
-void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb_functions, Node *root){
+void check_decl(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions, Node *root){
     if(root) {
         if (root->label == Variable) {
             int is_declared = 0;
@@ -111,7 +111,20 @@ void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb
     }
 }
 
-static void check_different_idents(SymbolsTable *first, SymbolsTable *second){
+/**
+ * @brief Gets the type of a function.
+ *
+ * This function traverses the abstract syntax tree (AST) rooted at 'root' to find the type of the function.
+ * The type of the function is determined by the label of the first child of the root node.
+ *
+ * @param root A pointer to the root of the AST to check.
+ * @return The type of the function:
+ *         - INT if the function returns an integer.
+ *         - CHAR if the function returns a character.
+ *         - VOID if the function returns void.
+ *         - UNKNOWN if the function returns an unknown type.
+ */
+static void check_different_idents(SymTabs *first, SymTabs *second){
     for(Table *current = first->first; current; current = current->next)
         if(check_in_table(*second, current->var.ident)){
             fprintf(stderr, "Error at line %d: variable %s is declared in the function and is a parameter\n", current->var.lineno, current->var.ident);
@@ -139,7 +152,7 @@ static void check_return_type(Node *root, int type){
     }
 }
 
-static void check_idents(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb_functions){
+static void check_idents(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions){
     Node *current = FIRSTCHILD(SECONDCHILD(node));
     for(int i = 0; i < nb_functions; i += 2)
         check_different_idents(decl_functions[i], decl_functions[i+1]);
@@ -186,7 +199,7 @@ static void check_functions(){
     }
 }
 
-static void check_types(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb_functions){
+static void check_types(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions){
     check_affectations(node, global_vars, decl_functions, nb_functions);
     return;
 }
@@ -198,7 +211,7 @@ static void check_arrays(){
 /**
  * @brief Checks the semantics of the program.
  */
-void semantic_check(SymbolsTable *global_vars, SymbolsTable **decl_functions, int nb_functions){
+void semantic_check(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions){
     check_idents(global_vars, decl_functions, nb_functions);
     check_functions();
     check_types(global_vars, decl_functions, nb_functions);

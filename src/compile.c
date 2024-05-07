@@ -20,7 +20,7 @@ int count_functions(){
  * @param table The symbols table to search in.
  * @return The type of the variable (0 for char, 1 for int), or -1 if the variable is not found.
  */
-int find_type_in_sb(char *var_name, SymbolsTable *table){
+int find_type_in_sb(char *var_name, SymTabs *table){
     for (Table *current = table->first; current; current = current->next)
         if (strcmp(current->var.ident, var_name) == 0)
             return current->var.is_int;
@@ -33,7 +33,7 @@ int find_type_in_sb(char *var_name, SymbolsTable *table){
  * @param s The symbol to check_in_table for.
  * @return 1 if the symbol exists, 0 otherwise.
  */
-int check_in_table(SymbolsTable t, char *s){
+int check_in_table(SymTabs t, char *s){
     for(Table *current = t.first; current; current = current->next)
         if (strcmp(current->var.ident, s) == 0)
             return 1;
@@ -44,8 +44,8 @@ int check_in_table(SymbolsTable t, char *s){
  * @brief Creates a new symbol table.
  * @return A pointer to the newly created symbol table.
  */
-SymbolsTable* creatSymbolsTable(){
-    SymbolsTable* sb = (SymbolsTable*) try(malloc(sizeof(SymbolsTable)), NULL);
+SymTabs* creatSymbolsTable(){
+    SymTabs* sb = (SymTabs*) try(malloc(sizeof(SymTabs)), NULL);
     sb->first = NULL;
     sb->offset = 0;
     return sb;
@@ -70,7 +70,7 @@ static int check_type(char * type){
  * @param root The node to add.
  * @param type The type of the node.
  */
-static void add_to_table(SymbolsTable *t, Node *root, char * type, int is_array, int size){
+static void add_to_table(SymTabs *t, Node *root, char * type, int is_array, int size){
     if(!check_in_table(*t, root->ident)){
         Table *table = (Table*) try(malloc(sizeof(Table)), NULL);
 
@@ -95,7 +95,7 @@ static void add_to_table(SymbolsTable *t, Node *root, char * type, int is_array,
  * @param t The symbol table to fill.
  * @param root The node to get variables from.
  */
-void fill_table_vars(SymbolsTable *t, Node *root){
+void fill_table_vars(SymTabs *t, Node *root){
     Node * tmp = NULL;
     if(root->label == Type && FIRSTCHILD(root))
         tmp = FIRSTCHILD(root);
@@ -114,8 +114,8 @@ void fill_table_vars(SymbolsTable *t, Node *root){
  * @param root The root node of the abstract syntax tree.
  * @return The symbol table containing the function variables.
  */
-static SymbolsTable* fill_func_vars(Node *root){
-    SymbolsTable *t = creatSymbolsTable();
+static SymTabs* fill_func_vars(Node *root){
+    SymTabs *t = creatSymbolsTable();
     Node *tmp = SECONDCHILD(root)->nextSibling->nextSibling->firstChild;
     while(tmp){
         if(tmp->label == Type && FIRSTCHILD(tmp)){
@@ -136,7 +136,7 @@ static SymbolsTable* fill_func_vars(Node *root){
  * @param root The node to get functions from.
  * @param nb_functions A pointer to the nb_functions of functions.
  */
-void fill_table_fcts(SymbolsTable **t, SymbolsTable *global_vars, Node *root, int *nb_functions){
+void fill_table_fcts(SymTabs **t, SymTabs *global_vars, Node *root, int *nb_functions){
     Node * tmp = root;
     if(tmp->label == Function){
         if(!strcmp(SECONDCHILD(tmp)->ident, "main"))
@@ -153,8 +153,8 @@ void fill_table_fcts(SymbolsTable **t, SymbolsTable *global_vars, Node *root, in
  * @param nb_functions A pointer to the nb_functions of function parameters.
  * @return A pointer to the filled symbol table.
  */
-SymbolsTable* fill_func_parameters_table(Node *root){
-    SymbolsTable* res = creatSymbolsTable();
+SymTabs* fill_func_parameters_table(Node *root){
+    SymTabs* res = creatSymbolsTable();
     in_depth_course(SECONDCHILD(root)->nextSibling->firstChild, NULL, fill_table_vars, NULL, res, NULL);
     return res;
 }
@@ -164,9 +164,9 @@ SymbolsTable* fill_func_parameters_table(Node *root){
  * @param nb_functions A pointer to the nb_functions of declared functions.
  * @return A pointer to the filled symbol table.
  */
-SymbolsTable** fill_decl_functions(int nb_func, SymbolsTable *global_vars){
+SymTabs** fill_decl_functions(int nb_func, SymTabs *global_vars){
     int nb_functions = 0;
-    SymbolsTable** all_tables = (SymbolsTable**) try(malloc(sizeof(SymbolsTable*) * (nb_func * 2)), NULL);
+    SymTabs** all_tables = (SymTabs**) try(malloc(sizeof(SymTabs*) * (nb_func * 2)), NULL);
     if(FIRSTCHILD(node))
         in_width_course(SECONDCHILD(node)->firstChild, fill_table_fcts, all_tables, global_vars, &nb_functions);
     return all_tables;
@@ -176,7 +176,7 @@ SymbolsTable** fill_decl_functions(int nb_func, SymbolsTable *global_vars){
  * @brief Fills a symbol table with global variables.
  * @param t The symbol table to fill.
  */
-void fill_global_vars(SymbolsTable* t){
+void fill_global_vars(SymTabs* t){
     if(FIRSTCHILD(node))
         in_depth_course(FIRSTCHILD(node)->firstChild, NULL, fill_table_vars, NULL,  t, NULL);
 }
@@ -190,7 +190,7 @@ void fill_global_vars(SymbolsTable* t){
  * @param t The symbol table to fill.
  * @param file The file to write to.
  */
-void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymbolsTable *), void (*table)(SymbolsTable *, Node *), void (*check)(Node *), SymbolsTable *t, FILE * file){
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymTabs *), void (*table)(SymTabs *, Node *), void (*check)(Node *), SymTabs *t, FILE * file){
     if(root) {
         int skip = 0;
         if (calc)
@@ -213,7 +213,7 @@ void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymbolsTable *), v
  * @param t The symbol table to fill.
  * @param nb_functions A pointer to the nb_functions of nodes.
  */
-void in_width_course(Node * root, void (*func)(SymbolsTable **, SymbolsTable *, Node *, int *), SymbolsTable **t, SymbolsTable *global_vars, int *nb_functions){
+void in_width_course(Node * root, void (*func)(SymTabs **, SymTabs *, Node *, int *), SymTabs **t, SymTabs *global_vars, int *nb_functions){
     if(root){
         func(t, global_vars, root, nb_functions);
         in_width_course(root->nextSibling, func, t, global_vars, nb_functions);
@@ -250,7 +250,7 @@ static void calc_one_child(FILE *file){
  * @param file The file to write the assembly instructions to.
  * @return The result of the addition or subtraction operation.
  */
-static void addsub_calc(Node *root, FILE * file, SymbolsTable *global_vars){
+static void addsub_calc(Node *root, FILE * file, SymTabs *global_vars){
     if(SECONDCHILD(root)){
         get_value(FIRSTCHILD(root), file, global_vars);
         get_value(SECONDCHILD(root), file, global_vars);
@@ -276,7 +276,7 @@ static void addsub_calc(Node *root, FILE * file, SymbolsTable *global_vars){
  * @param file The file to write the assembly instructions to.
  * @return The result of the multiplication or division operation.
  */
-static void divstar_calc(Node *root, FILE * file, SymbolsTable *global_vars){
+static void divstar_calc(Node *root, FILE * file, SymTabs *global_vars){
     get_value(FIRSTCHILD(root), file, global_vars);
     get_value(SECONDCHILD(root), file, global_vars);
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
@@ -291,7 +291,7 @@ static void divstar_calc(Node *root, FILE * file, SymbolsTable *global_vars){
     }
 }
 
-static void equals_calc(Node *root, FILE * file, SymbolsTable *global_vars){
+static void equals_calc(Node *root, FILE * file, SymTabs *global_vars){
     get_value(SECONDCHILD(root), file, global_vars);
     int offset = 0, type = 0;
     for(Table *current = global_vars->first; current; current = current->next)
@@ -321,7 +321,13 @@ static void num_calc(Node *root, FILE * file){
     fprintf(file, "push rax\n");
 }
 
-static void ident_calc(Node *root, FILE * file, SymbolsTable *global_vars){
+/**
+ * @brief Writes the value of an identifier to a file as an assembly instruction.
+ * @param root The node whose value is to be written.
+ * @param file The file to write the assembly instruction to.
+ * @param global_vars The symbol table for global variables.
+ */
+static void ident_calc(Node *root, FILE * file, SymTabs *global_vars){
     int offset = 0, type;
     for(Table *current = global_vars->first; current; current = current->next){
         if(root->label == Array){
@@ -350,19 +356,44 @@ static void ident_calc(Node *root, FILE * file, SymbolsTable *global_vars){
     }
 }
 
+/**
+ * @brief Writes the value of a character to a file as an assembly instruction.
+ * @param root The node whose value is to be written.
+ * @param file The file to write the assembly instruction to.
+ */
 static void character_calc(Node *root, FILE * file){
     fprintf(file, "mov rax, %d\n", root->ident[1]);
     fprintf(file, "push rax\n");
 }
 
-static void expression_calc(Node *root, FILE * file, SymbolsTable * global_vars){
-    if(FIRSTCHILD(root)->label == Addsub || FIRSTCHILD(root)->label == Divstar)
-        do_calc(FIRSTCHILD(root), file, global_vars);
-    else
-        get_value(FIRSTCHILD(root), file, global_vars);
+/**
+ * @brief Performs calculations on an expression node and writes the result to a file.
+ * @param root The node to perform calculations on.
+ * @param file The file to write to.
+ * @param global_vars The symbol table for global variables.
+ */
+static void expression_calc(Node *root, FILE * file, SymTabs * global_vars){
+    switch(FIRSTCHILD(root)->label){
+        case Addsub:
+        case Divstar:
+            do_calc(FIRSTCHILD(root), file, global_vars);
+            break;
+        case Eq:
+            get_value(FIRSTCHILD(root), file, global_vars);
+            get_value(SECONDCHILD(root), file, global_vars);
+            break;
+        default:
+            get_value(FIRSTCHILD(root), file, global_vars);
+    }
 }
 
-static void function_calc(Node *root, FILE * file, SymbolsTable * global_vars){
+/**
+ * @brief Performs calculations on a function node and writes the result to a file.
+ * @param root The node to perform calculations on.
+ * @param file The file to write to.
+ * @param global_vars The symbol table for global variables.
+ */
+static void function_calc(Node *root, FILE * file, SymTabs * global_vars){
     fprintf(file, ";Function %s\n", FIRSTCHILD(root)->ident);
     /*
     if(!strcmp(FIRSTCHILD(root)->ident, "getchar")){
@@ -379,42 +410,28 @@ static void function_calc(Node *root, FILE * file, SymbolsTable * global_vars){
     }*/
 }
 
-static void if_calc(Node *root, FILE *file, SymbolsTable *global_vars){
+/**
+ * @brief Performs calculations on an if node and writes the result to a file.
+ * @param root The node to perform calculations on.
+ * @param file The file to write to.
+ * @param global_vars The symbol table for global variables.
+ */
+static void if_calc(Node *root, FILE *file, SymTabs *global_vars){
     //TO DOO
-    /*get_value(FIRSTCHILD(root), file, global_vars);
-    get_value(SECONDCHILD(root), file, global_vars);
-    calc_to_asm(file);
-    fprintf(file, "cmp rax, rcx\n");
-    fprintf(file, "pop rcx\n");
-    fprintf(file, "pop rax\n");
-    switch(root->label){
-        case Or:
-            fprintf(file, "or rax, rcx\n");
-            break;
-        case And:
-            fprintf(file, "and rax, rcx\n");
-            break;
-        case Eq:
-            fprintf(file, "je ");
-            break;
-        case Order:
-            if(!strcmp(root->ident, "<"))
-                fprintf(file, "jl ");
-            else if(!strcmp(root->ident, ">"))
-                fprintf(file, "jg ");
-            else if(!strcmp(root->ident, "<="))
-                fprintf(file, "jle ");
-            else if(!strcmp(root->ident, ">="))
-                fprintf(file, "jge ");
-            break;
-        default:
-            fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
-            exit(SEMANTIC_ERROR);
-            break;
-    }*/
+    fprintf(file, ";If\n");
+    //get_value(FIRSTCHILD(root), file, global_vars);
+    printf("if:\n");
+    fprintf(file, "then:\n");
+    fprintf(file, "else:\n");
 }
 
-void get_value(Node * root, FILE * file, SymbolsTable * global_vars){
+/**
+ * @brief Gets the value of a node and writes it to a file.
+ * @param root The node to get the value of.
+ * @param file The file to write to.
+ * @param global_vars The symbol table for global variables.
+ */
+void get_value(Node * root, FILE * file, SymTabs * global_vars){
     switch(root->label){
         case Variable:
             ident_calc(FIRSTCHILD(root), file, global_vars);
@@ -425,16 +442,17 @@ void get_value(Node * root, FILE * file, SymbolsTable * global_vars){
         case Character:
             character_calc(root, file);
             break;
-        case Expression:;
+        case Expression:
             expression_calc(root, file, global_vars);
             break;
         case Function:
             function_calc(root, file, global_vars);
             break;
-        case If:
-            if_calc(root, file, global_vars);
+        case Eq:
+            printf("Here\n");
             break;
         default:
+            printf("Here\n");
             fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
             exit(SEMANTIC_ERROR);
             break;
@@ -448,7 +466,7 @@ void get_value(Node * root, FILE * file, SymbolsTable * global_vars){
  * @param global_vars The symbol table for global variables.
  * @return The result of the calculation.
  */
-int do_calc(Node *root, FILE * file, SymbolsTable *global_vars){
+int do_calc(Node *root, FILE * file, SymTabs *global_vars){
     switch(root->label){
         case Addsub:
             addsub_calc(root, file, global_vars);
@@ -459,6 +477,9 @@ int do_calc(Node *root, FILE * file, SymbolsTable *global_vars){
         case Equals:
             equals_calc(root, file, global_vars);
             return -1;
+        case If:
+            if_calc(root, file, global_vars);
+            return 0;
         default:
             return 0;
     }
@@ -524,7 +545,7 @@ void find_types(Node *root){
  * 
  * @param t The symbols table containing the global variables.
  */
-void build_global_vars_asm(SymbolsTable *t){
+void build_global_vars_asm(SymTabs *t){
     FILE * file = try(fopen("_anonymous.asm", "w"), NULL);
     int size = 0;
     fprintf(file, "section .bss\n");
@@ -539,7 +560,7 @@ void build_global_vars_asm(SymbolsTable *t){
  * @brief Builds minimal assembly code from a tree and writes it to a file.
  * @param root The root node of the tree.
  */
-void build_minimal_asm(Node *root, SymbolsTable *global_vars){
+void build_minimal_asm(Node *root, SymTabs *global_vars){
     FILE * file = try(fopen("_anonymous.asm", "a"), NULL);
     fprintf(file, "global _start\n");
     fprintf(file, "section .text\n");
@@ -551,6 +572,11 @@ void build_minimal_asm(Node *root, SymbolsTable *global_vars){
     try(fclose(file));
 }
 
+/**
+ * @brief Gets the type of a function.
+ * @param root The root node of the function.
+ * @return The type of the function.
+ */
 int get_function_type(Node *root){
     if(!strcmp(FIRSTCHILD(root)->ident, "char"))
         return CHAR;
@@ -580,7 +606,7 @@ void free_table(Table *t){
  * @brief Frees the memory allocated for a symbol table.
  * @param t The symbol table to free.
  */
-void free_symbols_table(SymbolsTable *t){
+void free_symbols_table(SymTabs *t){
     free_table(t->first); ///< Free the first table in the symbol table.
     free(t); ///< Free the symbol table itself.
 }
@@ -590,7 +616,7 @@ void free_symbols_table(SymbolsTable *t){
  * @param tables The array of symbol tables to free.
  * @param length The number of symbol tables in the array.
  */
-void free_tables(SymbolsTable** tables, int length){
+void free_tables(SymTabs** tables, int length){
     for(int i = 0; i < length; ++i){
         free_symbols_table(tables[i * 2]); ///< Free the symbol table at index i * 2.
         free_symbols_table(tables[i * 2 + 1]); ///< Free the symbol table at index i * 2 + 1.
@@ -613,6 +639,7 @@ void print_type(int type){
             break;
         case VOID:
             printf("It's a void\n");
+            break;
         default:
             printf("Unknown type\n");
     }
@@ -639,7 +666,7 @@ void print_table(Table *t){
  * @brief Prints the global variables in a symbol table.
  * @param t The symbol table to print from.
  */
-void print_global_vars(SymbolsTable *t){
+void print_global_vars(SymTabs *t){
     printf("\nGlobal vars:\n\n"); ///< Print a header for the global variables.
     print_table(t->first); ///< Print the first table in the symbol table.
 }
@@ -649,7 +676,7 @@ void print_global_vars(SymbolsTable *t){
  * @param t The array of symbol tables to print from.
  * @param nb_functions The number of symbol tables in the array.
  */
-void print_decl_functions(SymbolsTable **t, int nb_functions){
+void print_decl_functions(SymTabs **t, int nb_functions){
     printf("Functions:\n"); ///< Print a header for the functions.
     for(int i = 0; i < nb_functions; i += 2){
         printf("\nFunction %d :\n", i/2 + 1); ///< Print the function number.

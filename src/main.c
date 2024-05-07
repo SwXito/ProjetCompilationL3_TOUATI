@@ -12,8 +12,8 @@ extern Node *node;
  */
 
 int main(int argc, char *argv[]){
-    SymbolsTable **decl_functions = NULL;
-    SymbolsTable *global_vars = creatSymbolsTable();
+    SymTabs **decl_functions = NULL;
+    SymTabs *global_vars = creatSymbolsTable();
 
     int err = yyparse(), nb_func = count_functions();
 

@@ -17,7 +17,7 @@ static void help(){
     printf("\n");
 }
 
-void parse_args(int argc, char *argv[], Node * node, SymbolsTable *global_vars, SymbolsTable **decl_functions, int count){
+void parse_args(int argc, char *argv[], Node * node, SymTabs *global_vars, SymTabs **decl_functions, int count){
     int show_help = 0, show_tree = 0, show_tables = 0;
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || (strcmp(argv[i], "-h") == 0))
