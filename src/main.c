@@ -1,4 +1,5 @@
 #include "compile.h"
+#include "semantic.h"
 #include "build.h"
 #include "parse.h"
 

@@ -89,9 +89,9 @@ int get_value(Node * root, FILE * file, SymbolsTable * global_vars); ///< Functi
 
 int do_calc(Node *root, FILE * file, SymbolsTable *global_vars); ///< Function to perform calculations on the tree nodes.
 
-int expression_type(Node *root);
+int expression_type(Node *root); ///< Function to get the type of an expression.
 
-void semantic_check(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count); ///< Function to perform semantic checks on the tree.
+int get_function_type(Node *root); ///< Function to get the type of a function.
 
 void free_symbols_table(SymbolsTable *t); ///< Function to free the memory allocated for the symbol table.
 

@@ -19,7 +19,7 @@ obj:
 	mkdir -p obj
 
 
-$(BIN)/$(EXEC): $(OBJ)/tree.o $(OBJ)/$(EXEC).o $(OBJ)/$(EXEC).yy.o $(OBJ)/compile.o $(OBJ)/parse.o $(OBJ)/build.o $(OBJ)/main.o | bin
+$(BIN)/$(EXEC): $(OBJ)/tree.o $(OBJ)/$(EXEC).o $(OBJ)/$(EXEC).yy.o $(OBJ)/compile.o $(OBJ)/parse.o $(OBJ)/build.o $(OBJ)/semantic.o $(OBJ)/main.o | bin
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 $(OBJ)/main.o: $(SRC)/main.c $(SRC)/build.h $(SRC)/compile.h | obj
