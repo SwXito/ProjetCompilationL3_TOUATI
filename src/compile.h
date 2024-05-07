@@ -32,6 +32,8 @@ extern Node *node;
  */
 typedef struct elem{
     char *ident;  ///< Identifier of the element.
+    int is_array; ///< Flag indicating if the element is an array.
+    int size;     ///< Size of the array.
     int is_int;   ///< Flag indicating if the element is an integer.
     int deplct;   ///< Displacement of the element.
     int lineno;   ///< Line number of the element.

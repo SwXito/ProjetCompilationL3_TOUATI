@@ -70,19 +70,21 @@ static int check_type(char * type){
  * @param root The node to add.
  * @param type The type of the node.
  */
-static void add_to_table(SymbolsTable *t, Node *root, char * type){
+static void add_to_table(SymbolsTable *t, Node *root, char * type, int is_array, int size){
     if(!check_in_table(*t, root->ident)){
         Table *table = (Table*) try(malloc(sizeof(Table)), NULL);
 
         table->var.ident = strdup(root->ident);
         table->var.is_int = check_type(type);
         table->var.lineno = root->lineno;
+        table->var.is_array = is_array;
+        table->var.size = size;
 
         table->var.deplct = t->offset;
-        if(table->var.is_int)
-            t->offset += 4; //4 bytes for an int
+        if(is_array)
+            t->offset += size * (table->var.is_int ? 4 : 1);
         else
-            t->offset += 1; //1 byte for a char
+            t->offset += table->var.is_int ? 4 : 1;
         table->next = t->first;
         t->first = table;
     }
@@ -99,9 +101,9 @@ void fill_table_vars(SymbolsTable *t, Node *root){
         tmp = FIRSTCHILD(root);
     while(tmp){
         if(tmp->label == Array)
-            add_to_table(t, FIRSTCHILD(tmp), root->ident);
+            add_to_table(t, FIRSTCHILD(tmp), root->ident, 1, FIRSTCHILD(FIRSTCHILD(tmp))->num);
         else
-            add_to_table(t, tmp, root->ident);
+            add_to_table(t, tmp, root->ident, 0, 0);
         tmp = tmp->nextSibling;
     }
 }
@@ -118,9 +120,9 @@ static SymbolsTable* fill_func_vars(Node *root){
     while(tmp){
         if(tmp->label == Type && FIRSTCHILD(tmp)){
             if(FIRSTCHILD(tmp)->label == Array)
-                add_to_table(t, FIRSTCHILD(tmp)->firstChild, tmp->ident);
+                add_to_table(t, FIRSTCHILD(tmp)->firstChild, tmp->ident, 1, FIRSTCHILD(FIRSTCHILD(tmp))->num);
             else
-                add_to_table(t, FIRSTCHILD(tmp), tmp->ident);
+                add_to_table(t, FIRSTCHILD(tmp), tmp->ident, 0, 0);
         }
         tmp = tmp->nextSibling;
     }
@@ -321,18 +323,24 @@ static void num_calc(Node *root, FILE * file){
 
 static void ident_calc(Node *root, FILE * file, SymbolsTable *global_vars){
     int offset = 0, type;
-    for(Table *current = global_vars->first; current; current = current->next)
-        if(!strcmp(current->var.ident, root->ident)){
-            offset = current->var.deplct;
-            type = current->var.is_int;
+    for(Table *current = global_vars->first; current; current = current->next){
+        if(root->label == Array){
+            if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
+                offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
+                type = current->var.is_int;
+            }
+        }else {
+            if(!strcmp(current->var.ident, root->ident)){
+                offset = current->var.deplct;
+                type = current->var.is_int;
+            }
         }
+    }
     if(type == INT){
-        printf("Variable %s is an int\n", root->ident);
         fprintf(file, "movsx rax, dword [global_vars + %d]\n", offset);
         fprintf(file, "push rax\n");
     }
     else if (type == CHAR){
-        printf("Variable %s is a char\n", root->ident);
         fprintf(file, "movsx rax, byte [global_vars + %d]\n", offset);
         fprintf(file, "push rax\n");
     }
@@ -373,7 +381,7 @@ static void function_calc(Node *root, FILE * file, SymbolsTable * global_vars){
 
 static void if_calc(Node *root, FILE *file, SymbolsTable *global_vars){
     //TO DOO
-    get_value(FIRSTCHILD(root), file, global_vars);
+    /*get_value(FIRSTCHILD(root), file, global_vars);
     get_value(SECONDCHILD(root), file, global_vars);
     calc_to_asm(file);
     fprintf(file, "cmp rax, rcx\n");
@@ -403,7 +411,7 @@ static void if_calc(Node *root, FILE *file, SymbolsTable *global_vars){
             fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
             exit(SEMANTIC_ERROR);
             break;
-    }
+    }*/
 }
 
 void get_value(Node * root, FILE * file, SymbolsTable * global_vars){
@@ -521,7 +529,7 @@ void build_global_vars_asm(SymbolsTable *t){
     int size = 0;
     fprintf(file, "section .bss\n");
     for(Table *current = t->first; current; current = current->next)
-        size += current->var.is_int ? 4 : 1;
+        size += current->var.is_array ? current->var.size * (current->var.is_int ? 4 : 1) : (current->var.is_int ? 4 : 1);
     if(size > 0)
         fprintf(file, "global_vars resb %d\n", size);
     try(fclose(file));
@@ -616,8 +624,14 @@ void print_type(int type){
  */
 void print_table(Table *t){
     if(t){
-        printf("ident: %s Deplct : %d, type : %d\n", t->var.ident, t->var.deplct, t->var.is_int); ///< Print the identifier, displacement, and type of the variable in the table.
-        print_table(t->next); ///< Recursively print the next table.
+        printf("####################\n"); ///< Print a header for the table.
+        printf("Identifier: %s\n", t->var.ident); ///< Print the identifier of the table.
+        printf("Type: %s\n", t->var.is_int ? "int" : "char"); ///< Print the type of the table.
+        printf("Array: %s\n", t->var.is_array ? "yes" : "no"); ///< Print if the table is an array.
+        printf("Displacement: %d\n", t->var.deplct); ///< Print the displacement of the table.
+        printf("Line number: %d\n", t->var.lineno); ///< Print the line number of the table.
+        printf("\n"); ///< Print a newline character.
+        print_table(t->next); ///< Print the next table in the symbol table.
     }
 }
 
