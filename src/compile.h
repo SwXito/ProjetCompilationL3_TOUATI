@@ -57,17 +57,13 @@ typedef struct{
   Table* first;     ///< Pointer to the first table.
 }SymbolsTable;
 
-int check_in_table(SymbolsTable t, char *s); ///< Function to check_in_table if a symbol exists in the table.
-
 int count_functions(); ///< Function to count the number of functions in the tree.
 
-int find_type_in_sb(char *var, SymbolsTable *table);
-
-void check_decl(SymbolsTable *global_vars, SymbolsTable **decl_functions, int count, Node *root); ///< Function to check_in_table if a symbol exists in the table of declared functions.
-
-void check_affectations(Node *root, SymbolsTable* global_vars, SymbolsTable **decl_functs, int count);
+int find_type_in_sb(char *var, SymbolsTable *table); ///< Function to find the type of a variable in the symbol table.
 
 SymbolsTable* creatSymbolsTable(); ///< Function to create a new symbol table.
+
+int check_in_table(SymbolsTable t, char *s); ///< Function to check_in_table if a symbol exists in the table.
 
 void fill_table_vars(SymbolsTable* t, Node *root); ///< Function to fill the table with variables.
 
@@ -85,7 +81,7 @@ void in_width_course(Node * root, void (*func)(SymbolsTable **, SymbolsTable *, 
 
 void free_table(Table *t); ///< Function to free the memory allocated for the table.
 
-int get_value(Node * root, FILE * file, SymbolsTable * global_vars); ///< Function to get the value of a node.
+void get_value(Node * root, FILE * file, SymbolsTable * global_vars); ///< Function to get the value of a node.
 
 int do_calc(Node *root, FILE * file, SymbolsTable *global_vars); ///< Function to perform calculations on the tree nodes.
 
