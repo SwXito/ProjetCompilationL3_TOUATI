@@ -252,12 +252,12 @@ static void calc_one_child(FILE *file){
  */
 static void addsub_calc(Node *root, FILE * file, SymTabs *global_vars){
     if(SECONDCHILD(root)){
-        get_value(FIRSTCHILD(root), file, global_vars);
-        get_value(SECONDCHILD(root), file, global_vars);
+        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL);
+        get_value(SECONDCHILD(root), file, global_vars, NULL, NULL);
     }
     else{
         calc_one_child(file);
-        get_value(FIRSTCHILD(root), file, global_vars);
+        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL);
     }
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '+'){
@@ -277,8 +277,8 @@ static void addsub_calc(Node *root, FILE * file, SymTabs *global_vars){
  * @return The result of the multiplication or division operation.
  */
 static void divstar_calc(Node *root, FILE * file, SymTabs *global_vars){
-    get_value(FIRSTCHILD(root), file, global_vars);
-    get_value(SECONDCHILD(root), file, global_vars);
+    get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL);
+    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL);
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '*'){
         fprintf(file, "imul rax, rcx\n");
@@ -292,7 +292,7 @@ static void divstar_calc(Node *root, FILE * file, SymTabs *global_vars){
 }
 
 static void equals_calc(Node *root, FILE * file, SymTabs *global_vars){
-    get_value(SECONDCHILD(root), file, global_vars);
+    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL);
     int offset = 0, type = 0;
     for(Table *current = global_vars->first; current; current = current->next)
         if(!strcmp(current->var.ident, FIRSTCHILD(FIRSTCHILD(root))->ident)){
@@ -372,18 +372,17 @@ static void character_calc(Node *root, FILE * file){
  * @param file The file to write to.
  * @param global_vars The symbol table for global variables.
  */
-static void expression_calc(Node *root, FILE * file, SymTabs * global_vars){
+static void expression_calc(Node *root, FILE * file, SymTabs * global_vars, char *then_label, char *else_label){
     switch(FIRSTCHILD(root)->label){
         case Addsub:
         case Divstar:
             do_calc(FIRSTCHILD(root), file, global_vars);
             break;
         case Eq:
-            get_value(FIRSTCHILD(root), file, global_vars);
-            get_value(SECONDCHILD(root), file, global_vars);
+            get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
             break;
         default:
-            get_value(FIRSTCHILD(root), file, global_vars);
+            get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
     }
 }
 
@@ -410,6 +409,13 @@ static void function_calc(Node *root, FILE * file, SymTabs * global_vars){
     }*/
 }
 
+static char *create_label(){
+    static int label = 0;
+    char *res = (char*) try(malloc(sizeof(char) * 10), NULL);
+    sprintf(res, "_l_label%d", label++);
+    return res;
+}
+
 /**
  * @brief Performs calculations on an if node and writes the result to a file.
  * @param root The node to perform calculations on.
@@ -417,12 +423,68 @@ static void function_calc(Node *root, FILE * file, SymTabs * global_vars){
  * @param global_vars The symbol table for global variables.
  */
 static void if_calc(Node *root, FILE *file, SymTabs *global_vars){
-    //TO DOO
-    fprintf(file, ";If\n");
-    //get_value(FIRSTCHILD(root), file, global_vars);
-    printf("if:\n");
-    fprintf(file, "then:\n");
-    fprintf(file, "else:\n");
+    char *then_label = create_label();
+    char *else_label = create_label();
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
+    fprintf(file, "%s:\n", then_label);
+    do_calc(FIRSTCHILD(SECONDCHILD(root)), file, global_vars);
+    fprintf(file, "%s:\n", else_label);
+    do_calc(FIRSTCHILD(THIRDCHILD(root)), file, global_vars);
+    free(then_label);
+    free(else_label);
+}
+
+static void eq_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
+    if(then_label == NULL || else_label == NULL)
+        perror("Error in eq: then_label or else_label is NULL\n");
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
+    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
+    fprintf(file, "pop rcx\n");
+    fprintf(file, "pop rax\n");
+    fprintf(file, "cmp rax, rcx\n");
+    fprintf(file, "je %s\n", then_label);
+    fprintf(file, "jmp %s\n", else_label);
+}
+
+static void or_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
+    if(then_label == NULL || else_label == NULL)
+        perror("Error in or: then_label or else_label is NULL\n");
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
+    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
+    fprintf(file, "pop rcx\n");
+    fprintf(file, "pop rax\n");
+    fprintf(file, "or rax, rcx\n");
+    fprintf(file, "push rax\n");
+}
+
+static void and_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
+    if(then_label == NULL || else_label == NULL)
+        perror("Error in and: then_label or else_label is NULL\n");
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
+    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
+    fprintf(file, "pop rcx\n");
+    fprintf(file, "pop rax\n");
+    fprintf(file, "and rax, rcx\n");
+    fprintf(file, "push rax\n");
+}
+
+static void order_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
+    if(then_label == NULL || else_label == NULL)
+        perror("Error in order: then_label or else_label is NULL\n");
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
+    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
+    fprintf(file, "pop rcx\n");
+    fprintf(file, "pop rax\n");
+    fprintf(file, "cmp rax, rcx\n");
+    if(root->ident[0] == '<')
+        fprintf(file, "jl %s\n", then_label);
+    else if(root->ident[0] == '>')
+        fprintf(file, "jg %s\n", then_label);
+    else if(root->ident[1] == '=')
+        fprintf(file, "je %s\n", then_label);
+    else if(root->ident[0] == '!')
+        fprintf(file, "jne %s\n", then_label);
+    fprintf(file, "jmp %s\n", else_label);
 }
 
 /**
@@ -431,7 +493,7 @@ static void if_calc(Node *root, FILE *file, SymTabs *global_vars){
  * @param file The file to write to.
  * @param global_vars The symbol table for global variables.
  */
-void get_value(Node * root, FILE * file, SymTabs * global_vars){
+void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label, char *else_label){
     switch(root->label){
         case Variable:
             ident_calc(FIRSTCHILD(root), file, global_vars);
@@ -443,13 +505,22 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars){
             character_calc(root, file);
             break;
         case Expression:
-            expression_calc(root, file, global_vars);
+            expression_calc(root, file, global_vars, then_label, else_label);
             break;
         case Function:
             function_calc(root, file, global_vars);
             break;
         case Eq:
-            printf("Here\n");
+            eq_calc(root, file, global_vars, then_label, else_label);
+            break;
+        case Or:
+            or_calc(root, file, global_vars, then_label, else_label);
+            break;
+        case And:
+            and_calc(root, file, global_vars, then_label, else_label);
+            break;
+        case Order:
+            order_calc(root, file, global_vars, then_label, else_label);
             break;
         default:
             printf("Here\n");
@@ -479,7 +550,7 @@ int do_calc(Node *root, FILE * file, SymTabs *global_vars){
             return -1;
         case If:
             if_calc(root, file, global_vars);
-            return 0;
+            return -1;
         default:
             return 0;
     }
@@ -520,7 +591,7 @@ int expression_type(Node *root){
                 else if(!strcmp(FIRSTCHILD(root)->ident, "getint"))
                     type = INT;
                 else
-                    type = UNKNOWN;
+                    type = VOID;
                 break;
             default:
                 type = UNKNOWN;

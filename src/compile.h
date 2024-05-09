@@ -83,7 +83,7 @@ void in_width_course(Node * root, void (*func)(SymTabs **, SymTabs *, Node *, in
 
 void free_table(Table *t); ///< Function to free the memory allocated for the table.
 
-void get_value(Node * root, FILE * file, SymTabs * global_vars); ///< Function to get the value of a node.
+void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label, char *else_label); ///< Function to get the value of a node.
 
 int do_calc(Node *root, FILE * file, SymTabs *global_vars); ///< Function to perform calculations on the tree nodes.
 
