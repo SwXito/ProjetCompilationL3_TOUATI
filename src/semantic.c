@@ -132,23 +132,28 @@ static void check_different_idents(SymTabs *first, SymTabs *second){
         }
 }
 
-static void check_return_type(Node *root, int type){
+static void check_return_type(Node *root, int function_type){
     if(root){
         if(root->label == Return){
-            if(expression_type(FIRSTCHILD(root)) != type){
-                if(type == INT)
-                    fprintf(stderr, "Error at line %d: return type is not int\n", root->lineno);
-                else if(type == CHAR)
-                    fprintf(stderr, "Error at line %d: return type is not char\n", root->lineno);
-                else if(type == VOID)
-                    fprintf(stderr, "Error at line %d: return type is not void\n", root->lineno);
-                else
-                    fprintf(stderr, "Error at line %d: unknown return type\n", root->lineno);
-                exit(SEMANTIC_ERROR);
+            int return_type = expression_type(FIRSTCHILD(root));
+            if(function_type == VOID){
+                if(return_type != VOID){
+                    fprintf(stderr, "Error at line %d: function returning void cannot return a value\n", root->lineno);
+                    exit(SEMANTIC_ERROR);
+                }
+            } else{
+                if(return_type > function_type){
+                    fprintf(stderr, "Warning at line %d: function returning %s is returning %s\n", root->lineno, function_type == INT ? "an int" : "a char", return_type == INT ? "an int" : "a char");
+                    exit(SEMANTIC_ERROR);
+                }
+                else if(return_type == VOID){
+                    fprintf(stderr, "Error at line %d: function returning %s must return a value\n", root->lineno, function_type == INT ? "int" : "char");
+                    exit(SEMANTIC_ERROR);
+                }
             }
         }
-        check_return_type(FIRSTCHILD(root), type);
-        check_return_type(root->nextSibling, type);
+        check_return_type(FIRSTCHILD(root), function_type);
+        check_return_type(root->nextSibling, function_type);
     }
 }
 

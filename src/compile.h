@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include "try.h"
 #include "tree.h"
-#include "../obj/tpcas.h"
+#include "../obj/tpcc.h"
 
 #define EXIT_ERROR 3
 #define SEMANTIC_ERROR 2

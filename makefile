@@ -1,7 +1,7 @@
 CC=gcc
 CFLAGS=-Wall -I src
 LDFLAGS=-ll
-EXEC=tpcas
+EXEC=tpcc
 SRC=src
 BIN=bin
 OBJ=obj

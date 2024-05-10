@@ -1,7 +1,7 @@
 %{
 
 #include "tree.h"
-#include "tpcas.h"
+#include "tpcc.h"
 
 int lineno = 1;
 int ch = 1;

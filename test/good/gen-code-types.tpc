@@ -20,7 +20,7 @@ int main(void)  {
    return 0;
 }
 
-void jsp(void){
+char jsp(void){
     jsp();
-    return;
+    return 10;
 }
