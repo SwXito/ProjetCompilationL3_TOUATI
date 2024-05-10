@@ -10,7 +10,7 @@ typedef enum {
   Ident,
   Num,
   Corps,
-  instructions,
+  Instructions,
   Prog,
   None,
   Function,

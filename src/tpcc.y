@@ -184,7 +184,7 @@ SuiteInstr:
             addChild($$, $2);
             }
         else{
-            $$ = makeNode(instructions);
+            $$ = makeNode(Instructions);
             addChild($$, $2);
             }
         }

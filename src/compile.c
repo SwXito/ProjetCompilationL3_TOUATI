@@ -284,6 +284,11 @@ static void divstar_calc(Node *root, FILE * file, SymTabs *global_vars){
         fprintf(file, "imul rax, rcx\n");
         fprintf(file, "push rax\n");
     }
+    else if(root->ident[0] == '%'){
+        fprintf(file, "mov rdx, 0\n");
+        fprintf(file, "idiv rcx\n");
+        fprintf(file, "push rdx\n");
+    }
     else{
         fprintf(file, "mov rdx, 0\n");
         fprintf(file, "idiv rcx\n");
@@ -378,9 +383,6 @@ static void expression_calc(Node *root, FILE * file, SymTabs * global_vars, char
         case Divstar:
             do_calc(FIRSTCHILD(root), file, global_vars);
             break;
-        case Eq:
-            get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
-            break;
         default:
             get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
     }
@@ -416,6 +418,34 @@ static char *create_label(){
     return res;
 }
 
+static void manage_if_then_else(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
+    fprintf(file, "pop rax\n");
+    fprintf(file, "cmp rax, 0\n");
+    fprintf(file, "je %s\n", else_label);
+    fprintf(file, ";Then\n");
+    fprintf(file, "%s:\n", then_label);
+    switch(SECONDCHILD(root)->label){
+        case Instructions:
+            do_calc(FIRSTCHILD(SECONDCHILD(root)), file, global_vars);
+            break;
+        default:
+            do_calc(SECONDCHILD(root), file, global_vars);
+            break;
+    }
+    fprintf(file, ";Else\n");
+    fprintf(file, "%s:\n", else_label);
+    if(THIRDCHILD(root)){
+        switch (THIRDCHILD(root)->label){
+            case Instructions:
+                do_calc(FIRSTCHILD(THIRDCHILD(root)), file, global_vars);
+                break;
+            default:
+                do_calc(THIRDCHILD(root), file, global_vars);
+                break;
+        }
+    }
+}
+
 /**
  * @brief Performs calculations on an if node and writes the result to a file.
  * @param root The node to perform calculations on.
@@ -425,66 +455,133 @@ static char *create_label(){
 static void if_calc(Node *root, FILE *file, SymTabs *global_vars){
     char *then_label = create_label();
     char *else_label = create_label();
+    fprintf(file, ";If\n");
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
-    fprintf(file, "%s:\n", then_label);
-    do_calc(FIRSTCHILD(SECONDCHILD(root)), file, global_vars);
-    fprintf(file, "%s:\n", else_label);
-    do_calc(FIRSTCHILD(THIRDCHILD(root)), file, global_vars);
+    manage_if_then_else(root, file, global_vars, then_label, else_label);
     free(then_label);
     free(else_label);
 }
 
 static void eq_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
     if(then_label == NULL || else_label == NULL)
-        perror("Error in eq: then_label or else_label is NULL\n");
+        fprintf(stderr, "Error in eq: then_label or else_label is NULL\n");
+    char * tmp1 = create_label();
+    char * tmp2 = create_label();
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
     get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
     fprintf(file, "pop rcx\n");
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, rcx\n");
-    fprintf(file, "je %s\n", then_label);
-    fprintf(file, "jmp %s\n", else_label);
+    fprintf(file, "je %s\n", tmp1);
+    fprintf(file, "mov rax, 0\n");
+    fprintf(file, "jmp %s\n", tmp2);
+    fprintf(file, "%s:\n", tmp1);
+    fprintf(file, "mov rax, 1\n");
+    fprintf(file, "%s:\n", tmp2);
+    fprintf(file, "push rax\n");
+    free(tmp1);
+    free(tmp2);
 }
 
 static void or_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
     if(then_label == NULL || else_label == NULL)
-        perror("Error in or: then_label or else_label is NULL\n");
+        fprintf(stderr, "Error in or: then_label or else_label is NULL\n");
+    char * tmp1 = create_label();
+    char * tmp2 = create_label();
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
     get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
-    fprintf(file, "pop rcx\n");
     fprintf(file, "pop rax\n");
-    fprintf(file, "or rax, rcx\n");
+    fprintf(file, "cmp rax, 0\n");
+    fprintf(file, "jne %s\n", tmp1);
+    fprintf(file, "pop rax\n");
+    fprintf(file, "cmp rax, 0\n");
+    fprintf(file, "jne %s\n", tmp1);
+    fprintf(file, "mov rax, 0\n");
+    fprintf(file, "jmp %s\n", tmp2);
+    fprintf(file, "%s:\n", tmp1);
+    fprintf(file, "mov rax, 1\n");
+    fprintf(file, "%s:\n", tmp2);
     fprintf(file, "push rax\n");
+    free(tmp1);
+    free(tmp2);
 }
 
 static void and_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
     if(then_label == NULL || else_label == NULL)
-        perror("Error in and: then_label or else_label is NULL\n");
+        fprintf(stderr, "Error in and: then_label or else_label is NULL\n");
+    char * tmp1 = create_label();
+    char * tmp2 = create_label();
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
     get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
-    fprintf(file, "pop rcx\n");
     fprintf(file, "pop rax\n");
-    fprintf(file, "and rax, rcx\n");
+    fprintf(file, "cmp rax, 0\n");
+    fprintf(file, "je %s\n", tmp1);
+    fprintf(file, "pop rax\n");
+    fprintf(file, "cmp rax, 0\n");
+    fprintf(file, "je %s\n", tmp1);
+    fprintf(file, "mov rax, 1\n");
+    fprintf(file, "jmp %s\n", tmp2);
+    fprintf(file, "%s:\n", tmp1);
+    fprintf(file, "mov rax, 0\n");
+    fprintf(file, "%s:\n", tmp2);
     fprintf(file, "push rax\n");
+    free(tmp1);
+    free(tmp2);
 }
 
 static void order_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
     if(then_label == NULL || else_label == NULL)
-        perror("Error in order: then_label or else_label is NULL\n");
+        fprintf(stderr, "Error in order: then_label or else_label is NULL\n");
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
     get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
+    char * tmp1 = create_label();
+    char * tmp2 = create_label();
     fprintf(file, "pop rcx\n");
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, rcx\n");
-    if(root->ident[0] == '<')
-        fprintf(file, "jl %s\n", then_label);
-    else if(root->ident[0] == '>')
-        fprintf(file, "jg %s\n", then_label);
-    else if(root->ident[1] == '=')
-        fprintf(file, "je %s\n", then_label);
-    else if(root->ident[0] == '!')
-        fprintf(file, "jne %s\n", then_label);
-    fprintf(file, "jmp %s\n", else_label);
+    if(!strcmp(root->ident, "<")){
+        fprintf(file, "jl %s\n", tmp1);
+    }
+    else if(!strcmp(root->ident, "<=")){
+        fprintf(file, "jle %s\n", tmp1);
+    }
+    else if(!strcmp(root->ident, ">")){
+        fprintf(file, "jg %s\n", tmp1);
+    }
+    else if(!strcmp(root->ident, ">=")){
+        fprintf(file, "jge %s\n", tmp1);
+    }
+    else if(!strcmp(root->ident, "==")){
+        fprintf(file, "je %s\n", tmp1);
+    }
+    else if(!strcmp(root->ident, "!=")){
+        fprintf(file, "jne %s\n", tmp1);
+    }
+    fprintf(file, "mov rax, 0\n");
+    fprintf(file, "jmp %s\n", tmp2);
+    fprintf(file, "%s:\n", tmp1);
+    fprintf(file, "mov rax, 1\n");
+    fprintf(file, "%s:\n", tmp2);
+    fprintf(file, "push rax\n");
+    free(tmp1);
+    free(tmp2);
+}
+
+static void negative_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
+    char * tmp1 = create_label();
+    char * tmp2 = create_label();
+    fprintf(file, "pop rax\n");
+    fprintf(file, "cmp rax, 0\n");
+    fprintf(file, "je %s\n", tmp1);
+    fprintf(file, "mov rax, 0\n");
+    fprintf(file, "jmp %s\n", tmp2);
+    fprintf(file, "%s:\n", tmp1);
+    fprintf(file, "mov rax, 1\n");
+    fprintf(file, "%s:\n", tmp2);
+    fprintf(file, "push rax\n");
+    free(tmp1);
+    free(tmp2);
 }
 
 /**
@@ -522,6 +619,9 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
         case Order:
             order_calc(root, file, global_vars, then_label, else_label);
             break;
+        case Not:
+            negative_calc(root, file, global_vars, then_label, else_label);
+            break;
         default:
             printf("Here\n");
             fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
@@ -549,7 +649,9 @@ int do_calc(Node *root, FILE * file, SymTabs *global_vars){
             equals_calc(root, file, global_vars);
             return -1;
         case If:
+            printf("If\n");
             if_calc(root, file, global_vars);
+            printf("End If\n");
             return -1;
         default:
             return 0;

@@ -1,11 +1,6 @@
 int a;
-int i;
+int x, y, z;
 int main(void){
-    if(i == 1){
-        a = 2;
-    }
-    else{
-        a = 3;
-    }
+    x=!(x==y||x>z);
     return 1;
 }
