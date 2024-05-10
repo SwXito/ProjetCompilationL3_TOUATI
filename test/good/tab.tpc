@@ -1,6 +1,6 @@
 int tab[10];
 int a;
 int main(void){
-    a = tab[2*50];
+    a = tab[2*0];
     return 1;
 }

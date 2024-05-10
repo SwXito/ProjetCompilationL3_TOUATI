@@ -209,8 +209,87 @@ static void check_types(SymTabs *global_vars, SymTabs **decl_functions, int nb_f
     return;
 }
 
+static int addsub_calc(Node *root){
+    if(root->ident[0] == '+')
+        return expression_result(FIRSTCHILD(root)) + expression_result(SECONDCHILD(root));
+    else
+        if(SECONDCHILD(root))
+            return expression_result(FIRSTCHILD(root)) - expression_result(SECONDCHILD(root));
+        else
+            return -expression_result(FIRSTCHILD(root));
+        
+}
+
+static int divstar_calc(Node *root){
+    if(root->ident[0] == '*')
+        return expression_result(FIRSTCHILD(root)) * expression_result(SECONDCHILD(root));
+    else if(root->ident[0] == '/')
+        return expression_result(FIRSTCHILD(root)) / expression_result(SECONDCHILD(root));
+    else
+        return expression_result(FIRSTCHILD(root)) % expression_result(SECONDCHILD(root));
+}
+
+int expression_result(Node *root){
+    switch(root->label){
+        case Addsub:
+            return addsub_calc(root);
+        case Divstar:
+            return divstar_calc(root);
+        case Num:
+            return root->num;
+        default:
+            exit(SEMANTIC_ERROR);
+    }
+}
+
+static void check_array_acces(Node *root){
+    if(root){
+        if(root->label == Array){
+            switch(FIRSTCHILD(FIRSTCHILD(root))->label){
+                case Num:
+                    if(FIRSTCHILD(FIRSTCHILD(root))->num <= 0){
+                        fprintf(stderr, "Error at line %d: array index must be greater than 0\n", FIRSTCHILD(FIRSTCHILD(root))->lineno);
+                        exit(SEMANTIC_ERROR);
+                    }
+                    break;
+                case Expression:
+                    if(expression_type(FIRSTCHILD(FIRSTCHILD(root))) != INT){
+                        fprintf(stderr, "Error at line %d: array index must be an int\n", FIRSTCHILD(FIRSTCHILD(root))->lineno);
+                        exit(SEMANTIC_ERROR);
+                    }
+                    else{
+                        if(expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)))) <= 0){
+                            fprintf(stderr, "Error at line %d: variable %s can't be declared\n", FIRSTCHILD(FIRSTCHILD(root))->lineno, FIRSTCHILD(root)->ident);
+                            exit(SEMANTIC_ERROR);
+                        }
+                    }
+                    break;
+                default:
+                    fprintf(stderr, "Error at line %d: array index must be an int\n", FIRSTCHILD(FIRSTCHILD(root))->lineno);
+                    exit(SEMANTIC_ERROR);
+            }
+        }
+        check_array_acces(FIRSTCHILD(root));
+        check_array_acces(root->nextSibling);
+    }
+}
+
 static void check_arrays(){
-    return;
+    Node *global_vars = FIRSTCHILD(FIRSTCHILD(node));
+    Node *fonction = FIRSTCHILD(SECONDCHILD(node));
+    while(global_vars){
+        if(FIRSTCHILD(global_vars)->label == Array){
+            if(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(global_vars)))->num <= 0){
+                fprintf(stderr, "Error at line %d: array size must be greater than 0\n", FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(global_vars)))->lineno);
+                exit(SEMANTIC_ERROR);
+            }
+        }
+        global_vars = global_vars->nextSibling;
+    }
+    while(fonction){
+        check_array_acces(FIRSTCHILD(fonction));
+        fonction = fonction->nextSibling;
+    }
 }
 
 /**
