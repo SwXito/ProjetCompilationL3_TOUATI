@@ -2,6 +2,7 @@
 
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "tree.h"
 int yylex(void);
@@ -70,12 +71,14 @@ Declarateurs:
         }
     |  Declarateurs ',' IDENT '[' NUM ']' {
         $$ = $1;
+        Node *array = makeNode(Array);
         Node * tmp1 = makeNode(Ident);
         tmp1->ident = strdup($3);
-        addChild($$, tmp1);
         Node * num = makeNode(Num);
         num->num = $5;
-        addChild($$, num);
+        addChild(array, tmp1);
+        addChild(tmp1, num);
+        addSibling($$, array);
         }
     |  IDENT '[' NUM ']' {
         $$ = makeNode(Array);
@@ -221,8 +224,10 @@ Instr:
     |  IDENT '(' Arguments  ')' ';' {
         $$ = makeNode(Function);
         Node * tmp = makeNode(Ident);
+        Node * arg = makeNode(Parameters);
         tmp->ident = strdup($1);
-        addChild(tmp, $3);
+        addChild(arg, $3);
+        addChild(tmp, arg);
         addChild($$, tmp);
         }
     |  RETURN Exp ';' {
@@ -359,7 +364,7 @@ Arguments:
         $$ = $1;
         }
     | {
-        $$ = NULL;
+        $$ = makeNode(Void);
         }
     ;
 ListExp:
@@ -375,4 +380,5 @@ ListExp:
 
 void yyerror(char * s){
     fprintf(stderr, "%s : line %d, col %d\n", s, lineno, ch);
+    exit(1);
 }

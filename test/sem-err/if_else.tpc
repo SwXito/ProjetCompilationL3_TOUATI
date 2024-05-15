@@ -1,6 +1,7 @@
 int a;
-int x, y, z;
+int x, y, z, tab[10];
 int main(void){
+    //tab[0] = 1;
     x=!(x==y||x>z);
     return 1;
 }

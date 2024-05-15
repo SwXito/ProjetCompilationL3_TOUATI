@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-Wall -I src
-LDFLAGS=-ll
+LDFLAGS=-ll -lfl
 EXEC=tpcc
 SRC=src
 BIN=bin

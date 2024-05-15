@@ -87,7 +87,7 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
 
 int do_calc(Node *root, FILE * file, SymTabs *global_vars); ///< Function to perform calculations on the tree nodes.
 
-int expression_type(Node *root); ///< Function to get the type of an expression.
+int expression_type(Node *root, SymTabs *global_vars, SymTabs *functions); ///< Function to get the type of an expression.
 
 int get_function_type(Node *root); ///< Function to get the type of a function.
 
@@ -95,9 +95,11 @@ void free_symbols_table(SymTabs *t); ///< Function to free the memory allocated 
 
 void free_tables(SymTabs **tables, int length); ///< Function to free the memory allocated for the tables.
 
-void print_type(int type);
+void print_type(int type); ///< Function to print the type of a variable.
 
-void find_types(Node *root);
+void fill_functions(SymTabs* t, Node *root); ///< Function to fill the table with functions.
+
+void find_types(Node *root, SymTabs *global_vars, SymTabs *functions); ///< Function to find the types of expressions in the program.
 
 void print_table(Table *t); ///< Function to print the table.
 

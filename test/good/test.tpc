@@ -1,0 +1,12 @@
+int a;
+int x, y, z, tab[10];
+char array[20];
+int main(void){
+    array[0] = getint();
+    x=!(x==y||x>z);
+    return 1;
+}
+
+void jsp(void){
+    return;
+}

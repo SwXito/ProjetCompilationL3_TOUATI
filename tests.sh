@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Vérifie si le compilateur (tpcas) est présent
-if [ ! -f "./bin/tpcas" ]; then
-  echo "Le compilateur 'tpcas' n'est pas présent dans le répertoire courant."
+if [ ! -f "./bin/tpcc" ]; then
+  echo "Le compilateur 'tpcc' n'est pas présent dans le répertoire courant."
   exit 1
 fi
 
@@ -19,7 +19,7 @@ echo "#### Test des fichiers réussis ####"
 for file in "$good_directory"/*.tpc; do
   echo "Analyse syntaxique de $file"
 
-  ./bin/tpcas < "$file"
+  ./bin/tpcc < "$file"
 
   if [ $? -eq 0 ]; then
     echo "Pas d'erreur syntaxique."
@@ -42,7 +42,7 @@ valid=0
 for file in "$syn_err_directory"/*.tpc; do
   echo "Analyse syntaxique de $file"
 
-  ./bin/tpcas < "$file"
+  ./bin/tpcc < "$file"
 
   if [ $? -eq 0 ]; then
     echo "Pas d'erreur syntaxique (ERREUR : le fichier devrait produire une erreur)."

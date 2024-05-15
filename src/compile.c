@@ -1,7 +1,5 @@
 #include "compile.h"
 
-//TO DO: DEBUG TAB + DO IF ELSE
-
 int count_functions(){
     Node *current = FIRSTCHILD(SECONDCHILD(node));
     int nb_functions = 0;
@@ -24,7 +22,13 @@ int find_type_in_sb(char *var_name, SymTabs *table){
     for (Table *current = table->first; current; current = current->next)
         if (strcmp(current->var.ident, var_name) == 0)
             return current->var.is_int;
-    return -1;
+    if(!strcmp(var_name, "putchar") || !strcmp(var_name, "putint"))
+        return VOID;
+    if(!strcmp(var_name, "getint"))
+        return INT;
+    if(!strcmp(var_name, "getchar"))
+        return CHAR;
+    return UNKNOWN;
 }
 
 /**
@@ -61,6 +65,8 @@ static int check_type(char * type){
         return CHAR;
     if(strcmp(type, "int") == 0)
         return INT;
+    if(strcmp(type, "void") == 0)
+        return VOID;
     return UNKNOWN;
 }
 
@@ -87,6 +93,10 @@ static void add_to_table(SymTabs *t, Node *root, char * type, int is_array, int 
             t->offset += table->var.is_int ? 4 : 1;
         table->next = t->first;
         t->first = table;
+    }
+    else{
+        fprintf(stderr, "Error line %d: variable %s already declared\n", root->lineno, root->ident);
+        exit(SEMANTIC_ERROR);
     }
 }
 
@@ -179,6 +189,29 @@ SymTabs** fill_decl_functions(int nb_func, SymTabs *global_vars){
 void fill_global_vars(SymTabs* t){
     if(FIRSTCHILD(node))
         in_depth_course(FIRSTCHILD(node)->firstChild, NULL, fill_table_vars, NULL,  t, NULL);
+}
+
+/**
+ * @brief Builds the minimal assembly code from the tree.
+ * @param root The root node of the tree.
+ * @param global_vars The symbol table for global variables.
+ */
+static void fill_fcts(Node *root, SymTabs *t){
+    if(root->label == Function){
+        add_to_table(t, SECONDCHILD(root), FIRSTCHILD(root)->ident, 0, 0);
+    }
+}
+
+/**
+ * @brief Fills the functions in the symbol table.
+ * @param t The symbol table to fill.
+ * @param root The root node of the tree.
+ */
+void fill_functions(SymTabs* t, Node *root){
+    if(root){
+        fill_fcts(root, t);
+        fill_functions(t, root->nextSibling);
+    }
 }
 
 /**
@@ -296,23 +329,37 @@ static void divstar_calc(Node *root, FILE * file, SymTabs *global_vars){
     }
 }
 
-static void equals_calc(Node *root, FILE * file, SymTabs *global_vars){
+static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars){
     get_value(SECONDCHILD(root), file, global_vars, NULL, NULL);
-    int offset = 0, type = 0;
-    for(Table *current = global_vars->first; current; current = current->next)
-        if(!strcmp(current->var.ident, FIRSTCHILD(FIRSTCHILD(root))->ident)){
-            offset = current->var.deplct;
-            type = current->var.is_int;
+    int offset = -1, type = 0;
+    for(Table *current = global_vars->first; current; current = current->next){
+        if(FIRSTCHILD(FIRSTCHILD(root))->label == Array){
+            if(!strcmp(current->var.ident, FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)))->ident)){
+                offset = current->var.deplct;
+                type = current->var.is_int;
+            }
+        }else{
+            if(!strcmp(current->var.ident, FIRSTCHILD(FIRSTCHILD(root))->ident)){
+                offset = current->var.deplct;
+                type = current->var.is_int;
+            }
         }
-    fprintf(file, "pop rax\n");
-    if(type == INT)
-        fprintf(file, "mov dword [global_vars + %d], eax\n", offset);
-    else if(type == CHAR)
-        fprintf(file, "mov byte [global_vars + %d], al\n", offset);
-    else{
-        fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
-        exit(SEMANTIC_ERROR);
     }
+    if(offset > -1){
+        fprintf(file, "pop rax\n");
+        if(type == INT)
+            fprintf(file, "mov dword [global_vars + %d], eax\n", offset);
+        else if(type == CHAR)
+            fprintf(file, "mov byte [global_vars + %d], al\n", offset);
+        else{
+            fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
+            exit(SEMANTIC_ERROR);
+        }
+    }
+    else{
+        printf("not a global vars, in equals calc\n");
+    }
+
 }
 
 /**
@@ -333,33 +380,42 @@ static void num_calc(Node *root, FILE * file){
  * @param global_vars The symbol table for global variables.
  */
 static void ident_calc(Node *root, FILE * file, SymTabs *global_vars){
-    int offset = 0, type;
+    int offset = -1, type;
     for(Table *current = global_vars->first; current; current = current->next){
-        if(root->label == Array){
-            if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
-                offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
-                type = current->var.is_int;
-            }
-        }else {
-            if(!strcmp(current->var.ident, root->ident)){
-                offset = current->var.deplct;
-                type = current->var.is_int;
-            }
+        switch(root->label){
+            case Array:
+                if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
+                    offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
+                    type = current->var.is_int;
+                }
+                break;
+            default:
+                if(!strcmp(current->var.ident, root->ident)){
+                    offset = current->var.deplct;
+                    type = current->var.is_int;
+                }
         }
     }
-    if(type == INT){
-        fprintf(file, "movsx rax, dword [global_vars + %d]\n", offset);
-        fprintf(file, "push rax\n");
-    }
-    else if (type == CHAR){
-        fprintf(file, "movsx rax, byte [global_vars + %d]\n", offset);
-        fprintf(file, "push rax\n");
+    if(offset > -1){
+        if(type == INT){
+            fprintf(file, "movsx rax, dword [global_vars + %d]\n", offset);
+            fprintf(file, "push rax\n");
+        }
+        else if (type == CHAR){
+            fprintf(file, "movsx rax, byte [global_vars + %d]\n", offset);
+            fprintf(file, "push rax\n");
+        }
+        else{
+            fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
+            exit(SEMANTIC_ERROR);
+        }
     }
     else{
-        fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
-        exit(SEMANTIC_ERROR);
+        fprintf(stderr, "Not a global var\n");
+        //exit(SEMANTIC_ERROR);
     }
 }
+
 
 /**
  * @brief Writes the value of a character to a file as an assembly instruction.
@@ -463,8 +519,6 @@ static void if_calc(Node *root, FILE *file, SymTabs *global_vars){
 }
 
 static void eq_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
-    if(then_label == NULL || else_label == NULL)
-        fprintf(stderr, "Error in eq: then_label or else_label is NULL\n");
     char * tmp1 = create_label();
     char * tmp2 = create_label();
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
@@ -484,8 +538,6 @@ static void eq_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_lab
 }
 
 static void or_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
-    if(then_label == NULL || else_label == NULL)
-        fprintf(stderr, "Error in or: then_label or else_label is NULL\n");
     char * tmp1 = create_label();
     char * tmp2 = create_label();
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
@@ -507,8 +559,6 @@ static void or_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_lab
 }
 
 static void and_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
-    if(then_label == NULL || else_label == NULL)
-        fprintf(stderr, "Error in and: then_label or else_label is NULL\n");
     char * tmp1 = create_label();
     char * tmp2 = create_label();
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
@@ -530,8 +580,6 @@ static void and_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_la
 }
 
 static void order_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
-    if(then_label == NULL || else_label == NULL)
-        fprintf(stderr, "Error in order: then_label or else_label is NULL\n");
     get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label);
     get_value(SECONDCHILD(root), file, global_vars, then_label, else_label);
     char * tmp1 = create_label();
@@ -539,24 +587,18 @@ static void order_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_
     fprintf(file, "pop rcx\n");
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, rcx\n");
-    if(!strcmp(root->ident, "<")){
+    if(!strcmp(root->ident, "<"))
         fprintf(file, "jl %s\n", tmp1);
-    }
-    else if(!strcmp(root->ident, "<=")){
+    if(!strcmp(root->ident, "<="))
         fprintf(file, "jle %s\n", tmp1);
-    }
-    else if(!strcmp(root->ident, ">")){
+    if(!strcmp(root->ident, ">"))
         fprintf(file, "jg %s\n", tmp1);
-    }
-    else if(!strcmp(root->ident, ">=")){
+    if(!strcmp(root->ident, ">="))
         fprintf(file, "jge %s\n", tmp1);
-    }
-    else if(!strcmp(root->ident, "==")){
+    if(!strcmp(root->ident, "=="))
         fprintf(file, "je %s\n", tmp1);
-    }
-    else if(!strcmp(root->ident, "!=")){
+    if(!strcmp(root->ident, "!="))
         fprintf(file, "jne %s\n", tmp1);
-    }
     fprintf(file, "mov rax, 0\n");
     fprintf(file, "jmp %s\n", tmp2);
     fprintf(file, "%s:\n", tmp1);
@@ -625,7 +667,7 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
         default:
             printf("Here\n");
             fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
-            exit(SEMANTIC_ERROR);
+            //exit(SEMANTIC_ERROR);
             break;
     }
 }
@@ -646,7 +688,7 @@ int do_calc(Node *root, FILE * file, SymTabs *global_vars){
             divstar_calc(root, file, global_vars);
             return 1;
         case Equals:
-            equals_calc(root, file, global_vars);
+            affectation_calc(root, file, global_vars);
             return -1;
         case If:
             printf("If\n");
@@ -677,7 +719,7 @@ static int max(int a, int b){
  * @param root The root node of the syntax tree.
  * @return The type of the node. Returns -2 if the node is NULL.
  */
-int expression_type(Node *root){
+int expression_type(Node *root, SymTabs *global_vars, SymTabs *functions){
     if(root){
         int type;
         switch(root->label){
@@ -688,19 +730,59 @@ int expression_type(Node *root){
                 type = CHAR;
                 break;
             case Function:
-                if(!strcmp(FIRSTCHILD(root)->ident, "getchar"))
+                if(!strcmp(FIRSTCHILD(root)->ident, "getchar")){
                     type = CHAR;
-                else if(!strcmp(FIRSTCHILD(root)->ident, "getint"))
+                }else if(!strcmp(FIRSTCHILD(root)->ident, "getint")){
                     type = INT;
-                else
-                    type = VOID;
+                }else{
+                    type = find_type_in_sb(FIRSTCHILD(root)->ident, functions);
+                }
+                break;
+            case Not:
+                type = INT;
+                break;
+            case Order:
+                type = INT;
+                break;
+            case Eq:
+                type = INT;
+                break;
+            case Or:
+                type = INT;
+                break;
+            case And:
+                type = INT;
+                break;
+            case Addsub:
+                type = INT;
+                break;
+            case Divstar:
+                type = INT;
+                break;
+            case Equals:
+                type = INT;
+                break;
+            case Variable:
+                switch(FIRSTCHILD(root)->label){
+                    case Array:
+                        type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars);
+                        break;
+                    default:
+                        type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars);
+                }
                 break;
             default:
                 type = UNKNOWN;
         }
-        return max(type, max(expression_type(FIRSTCHILD(root)), expression_type(root->nextSibling)));
+        int expr1 = expression_type(FIRSTCHILD(root), global_vars, functions);
+        int expr2 = expression_type(root->nextSibling, global_vars, functions);
+        if(expr1 == VOID || expr2 == VOID){
+            fprintf(stderr, "Error line %d: void expression\n", root->lineno);
+            exit(SEMANTIC_ERROR);
+        }
+        return max(type, max(expr1, expr2));
     }
-    return VOID;
+    return UNKNOWN;
 }
 
 /**
@@ -708,9 +790,9 @@ int expression_type(Node *root){
  *
  * @param root The root node of the tree.
  */
-void find_types(Node *root){
+void find_types(Node *root, SymTabs *global_vars, SymTabs *functions){
     if(root->label == Expression)
-        print_type(expression_type(FIRSTCHILD(root)));
+        print_type(expression_type(FIRSTCHILD(root), global_vars, functions));
 }
 
 /**
@@ -826,7 +908,15 @@ void print_table(Table *t){
     if(t){
         printf("####################\n"); ///< Print a header for the table.
         printf("Identifier: %s\n", t->var.ident); ///< Print the identifier of the table.
-        printf("Type: %s\n", t->var.is_int ? "int" : "char"); ///< Print the type of the table.
+        printf("Type: "); ///< Print the type of the table.
+        if(t->var.is_int == INT)
+            printf("int\n");
+        else if(t->var.is_int == CHAR)
+            printf("char\n");
+        else if(t->var.is_int == VOID)
+            printf("void\n");
+        else
+            printf("unknown\n");
         printf("Array: %s\n", t->var.is_array ? "yes" : "no"); ///< Print if the table is an array.
         printf("Displacement: %d\n", t->var.deplct); ///< Print the displacement of the table.
         printf("Line number: %d\n", t->var.lineno); ///< Print the line number of the table.

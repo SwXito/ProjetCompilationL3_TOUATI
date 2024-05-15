@@ -17,6 +17,8 @@ Thumbs.db
 *.rar
 # tmp_files
 tmp/
+bin/
+obj/
 #ide_files
 .vscode/settings.json
 .vscode/
