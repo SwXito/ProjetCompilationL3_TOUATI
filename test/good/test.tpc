@@ -3,11 +3,13 @@ int x, y, z, tab[1];
 char array[1];
 
 int main(int caca){
+    int zeub;
     array[0] = getint();
     x=!(x==y||x>z);
     return 1;
 }
 
-int jsp(void){
+int jsp(int caca){
+    tab[0] = 2;
     return caca;
 }

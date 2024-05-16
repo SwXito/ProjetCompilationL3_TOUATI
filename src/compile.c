@@ -31,6 +31,16 @@ int find_type_in_sb(char *var_name, SymTabs *table){
     return UNKNOWN;
 }
 
+int find_type_in_fct(char *var_name, SymTabsFct *table){
+    for (Table *current = table->parameters; current; current = current->next)
+        if (strcmp(current->var.ident, var_name) == 0)
+            return current->var.is_int;
+    for (Table *current = table->variables; current; current = current->next)
+        if (strcmp(current->var.ident, var_name) == 0)
+            return current->var.is_int;
+    return UNKNOWN;
+}
+
 /**
  * @brief Checks if a symbol exists in the symbol table.
  * @param t The symbol table to check_in_table.
@@ -176,24 +186,39 @@ void fill_table_vars(SymTabs *t, Node *root){
 }
 
 /**
- * Fills the function variables in the symbol table.
- * 
- * @param root The root node of the abstract syntax tree.
- * @return The symbol table containing the function variables.
+ * @brief Builds the minimal assembly code from the tree.
+ * @param root The root node of the tree.
+ * @param global_vars The symbol table for global variables.
  */
-static SymTabs* fill_func_vars(Node *root){
-    SymTabs *t = creatSymbolsTable();
-    Node *tmp = SECONDCHILD(root)->nextSibling->nextSibling->firstChild;
+static void fill_param_fcts(Node *root, SymTabsFct *t){
+    Node *tmp = root->firstChild;
     while(tmp){
         if(tmp->label == Type && FIRSTCHILD(tmp)){
             if(FIRSTCHILD(tmp)->label == Array)
-                add_to_table(t, FIRSTCHILD(tmp)->firstChild, tmp->ident, 1, FIRSTCHILD(FIRSTCHILD(tmp))->num);
+                add_to_param_fct(t, FIRSTCHILD(FIRSTCHILD(tmp)), tmp->ident, 1, 0); //change size
             else
-                add_to_table(t, FIRSTCHILD(tmp), tmp->ident, 0, 0);
+                add_to_param_fct(t, FIRSTCHILD(tmp), tmp->ident, 0, 0);
         }
         tmp = tmp->nextSibling;
     }
-    return t;
+}
+
+/**
+ * @brief Fills the functions in the symbol table.
+ * @param t The symbol table to fill.
+ * @param root The root node of the tree.
+ */
+void fill_vars_fcts(Node *root, SymTabsFct* t){
+    Node *tmp = FIRSTCHILD(root);
+    while(tmp){
+        if(tmp->label == Type && FIRSTCHILD(tmp)){
+            if(FIRSTCHILD(tmp)->label == Array)
+                add_to_vars_fct(t, FIRSTCHILD(FIRSTCHILD(tmp)), tmp->ident, 1, 0);
+            else
+                add_to_vars_fct(t, FIRSTCHILD(tmp), tmp->ident, 0, 0);
+        }
+        tmp = tmp->nextSibling;
+    }
 }
 
 /**
@@ -203,13 +228,14 @@ static SymTabs* fill_func_vars(Node *root){
  * @param root The node to get functions from.
  * @param nb_functions A pointer to the nb_functions of functions.
  */
-void fill_table_fcts(SymTabs **t, SymTabs *global_vars, Node *root, int *nb_functions){
+void fill_table_fcts(SymTabsFct **t, SymTabs *global_vars, Node *root, int *nb_functions){
     Node * tmp = root;
     if(tmp->label == Function){
         if(!strcmp(SECONDCHILD(tmp)->ident, "main"))
             build_minimal_asm(tmp, global_vars);
-        t[(*nb_functions) * 2] = fill_func_parameters_table(tmp);
-        t[(*nb_functions) * 2 + 1] = fill_func_vars(tmp);
+        t[(*nb_functions)] = creatSymbolsTableFct(SECONDCHILD(tmp)->ident, check_type(FIRSTCHILD(tmp)->ident), FIRSTCHILD(tmp)->lineno);
+        fill_param_fcts(THIRDCHILD(tmp), t[*nb_functions]);
+        fill_vars_fcts(FOURTHCHILD(tmp), t[*nb_functions]);
         (*nb_functions)++;
     }
 }
@@ -231,11 +257,14 @@ SymTabs* fill_func_parameters_table(Node *root){
  * @param nb_functions A pointer to the nb_functions of declared functions.
  * @return A pointer to the filled symbol table.
  */
-SymTabs** fill_decl_functions(int nb_func, SymTabs *global_vars){
+SymTabsFct** fill_decl_functions(int nb_func, SymTabs *global_vars){
     int nb_functions = 0;
-    SymTabs** all_tables = (SymTabs**) try(malloc(sizeof(SymTabs*) * (nb_func * 2)), NULL);
-    if(FIRSTCHILD(node))
-        in_width_course(SECONDCHILD(node)->firstChild, fill_table_fcts, all_tables, global_vars, &nb_functions);
+    Node *tmp = SECONDCHILD(node)->firstChild;
+    SymTabsFct** all_tables = (SymTabsFct**) try(malloc(sizeof(SymTabsFct*) * (nb_func)), NULL);
+    while(tmp){
+        fill_table_fcts(all_tables, global_vars, tmp, &nb_functions);
+        tmp = tmp->nextSibling;
+    }
     return all_tables;
 }
 
@@ -248,28 +277,7 @@ void fill_global_vars(SymTabs* t){
         in_depth_course(FIRSTCHILD(node)->firstChild, NULL, fill_table_vars, NULL,  t, NULL);
 }
 
-/**
- * @brief Builds the minimal assembly code from the tree.
- * @param root The root node of the tree.
- * @param global_vars The symbol table for global variables.
- */
-static void fill_fcts(Node *root, SymTabs *t){
-    if(root->label == Function){
-        add_to_table(t, SECONDCHILD(root), FIRSTCHILD(root)->ident, 0, 0);
-    }
-}
 
-/**
- * @brief Fills the functions in the symbol table.
- * @param t The symbol table to fill.
- * @param root The root node of the tree.
- */
-void fill_functions(SymTabs* t, Node *root){
-    if(root){
-        fill_fcts(root, t);
-        fill_functions(t, root->nextSibling);
-    }
-}
 
 /**
  * @brief Traverses a tree in depth.
@@ -776,8 +784,8 @@ static int max(int a, int b){
  * @param root The root node of the syntax tree.
  * @return The type of the node. Returns -2 if the node is NULL.
  */
-int expression_type(Node *root, SymTabs *global_vars, SymTabs *functions){
-    int type, expr1 = UNKNOWN, expr2 = UNKNOWN;
+int expression_type(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    int type = INT, expr1 = UNKNOWN, expr2 = UNKNOWN;
     switch(root->label){
         case Num:
             type = INT;
@@ -791,25 +799,36 @@ int expression_type(Node *root, SymTabs *global_vars, SymTabs *functions){
             }else if(!strcmp(FIRSTCHILD(root)->ident, "getint")){
                 type = INT;
             }else{
-                type = find_type_in_sb(FIRSTCHILD(root)->ident, functions);
+                for(int i = 0; i < nb_functions; ++i)
+                    if(!strcmp(functions[i]->ident, FIRSTCHILD(root)->ident)){
+                        type = functions[i]->type;
+                        break;
+                    }
             }
             break;
         case Variable:
             switch(FIRSTCHILD(root)->label){
                 case Array:
-                    type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars);
+                    for(int i = 0; i < nb_functions; i++)
+                        if(function_name && !strcmp(function_name, functions[i]->ident))
+                            if((type = find_type_in_fct(FIRSTCHILD(FIRSTCHILD(root))->ident, functions[i])) < 0)
+                                    type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars);
                     break;
                 default:
-                    type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars);
+                    for(int i = 0; i < nb_functions; i++)
+                        if(function_name && !strcmp(function_name, functions[i]->ident))
+                            if((type = find_type_in_fct(FIRSTCHILD(root)->ident, functions[i])) < 0)
+                                    type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars);
+                    break;
             }
             break;
         default:
-            type = INT;
+            break;
     }
     if(FIRSTCHILD(root))
-        expr1 = expression_type(FIRSTCHILD(root), global_vars, functions);
+        expr1 = expression_type(FIRSTCHILD(root), global_vars, functions, nb_functions, function_name);
     if(root->nextSibling)
-        expr2 = expression_type(root->nextSibling, global_vars, functions);
+        expr2 = expression_type(root->nextSibling, global_vars, functions, nb_functions, function_name);
     if(expr1 == VOID || expr2 == VOID || type == VOID){
         fprintf(stderr, "Error line %d: void expression\n", root->lineno);
         exit(SEMANTIC_ERROR);
@@ -817,15 +836,6 @@ int expression_type(Node *root, SymTabs *global_vars, SymTabs *functions){
     return max(type, max(expr1, expr2));
 }
 
-/**
- * Finds the types of nodes in the given tree and prints them.
- *
- * @param root The root node of the tree.
- */
-void find_types(Node *root, SymTabs *global_vars, SymTabs *functions){
-    if(root->label == Expression)
-        print_type(expression_type(FIRSTCHILD(root), global_vars, functions));
-}
 
 /**
  * Builds the assembly code for global variables.
@@ -903,10 +913,12 @@ void free_symbols_table(SymTabs *t){
  * @param tables The array of symbol tables to free.
  * @param length The number of symbol tables in the array.
  */
-void free_tables(SymTabs** tables, int length){
+void free_tables(SymTabsFct** tables, int length){
     for(int i = 0; i < length; ++i){
-        free_symbols_table(tables[i * 2]); ///< Free the symbol table at index i * 2.
-        free_symbols_table(tables[i * 2 + 1]); ///< Free the symbol table at index i * 2 + 1.
+        free(tables[i]->ident); ///< Free the ident of the function at index i.
+        free_table(tables[i]->parameters); ///< Free the symbol table at index i * 2.
+        free_table(tables[i]->variables); ///< Free the symbol table at index i * 2 + 1.
+        free(tables[i]); ///< Free the function at index i.
     }
     free(tables); ///< Free the array of symbol tables.
 }
@@ -938,7 +950,7 @@ void print_type(int type){
  */
 void print_table(Table *t){
     if(t){
-        printf("####################\n"); ///< Print a header for the table.
+        //printf("####################\n"); ///< Print a header for the table.
         printf("Identifier: %s\n", t->var.ident); ///< Print the identifier of the table.
         printf("Type: "); ///< Print the type of the table.
         if(t->var.is_int == INT)
@@ -971,13 +983,25 @@ void print_global_vars(SymTabs *t){
  * @param t The array of symbol tables to print from.
  * @param nb_functions The number of symbol tables in the array.
  */
-void print_decl_functions(SymTabs **t, int nb_functions){
+void print_functions(SymTabsFct **t, int nb_functions){
     printf("Functions:\n"); ///< Print a header for the functions.
-    for(int i = 0; i < nb_functions; i += 2){
-        printf("\nFunction %d :\n", i/2 + 1); ///< Print the function number.
+    for(int i = 0; i < nb_functions; i ++){
+        printf("####################\n"); ///< Print a header for the function.
+        printf("Function: %s\n", t[i]->ident); ///< Print the identifier of the function.
+        printf("Type: "); ///< Print the type of the function.
+        if(t[i]->type == INT)
+            printf("int\n");
+        else if(t[i]->type == CHAR)
+            printf("char\n");
+        else if(t[i]->type == VOID)
+            printf("void\n");
+        else
+            printf("unknown\n");
+        printf("Line number: %d\n", t[i]->lineno); ///< Print the line number of the function.
         printf("\nParameters :\n"); ///< Print a header for the parameters.
-        print_table(t[i]->first); ///< Print the first table in the symbol table at index i * 2.
+        print_table(t[i]->parameters); ///< Print the first table in the symbol table at index i * 2.
         printf("\nVariables :\n"); ///< Print a header for the variables.
-        print_table(t[i + 1]->first); ///< Print the first table in the symbol table at index i * 2 + 1.
+        print_table(t[i]->variables); ///< Print the first table in the symbol table at index i * 2 + 1.
+        printf("\n"); ///< Print a newline character.
     }
 }

@@ -13,7 +13,7 @@
  *         - The type of the variable if the node is a variable.
  *         - UNKNOWN if the node is of an unknown type.
  */
-static int check_node_type(Node *root, SymTabs* global_vars, SymTabs **decl_functs, int nb_functions){
+static int check_node_type(Node *root, SymTabs* global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     switch(root->label){
         case Num:
             return INT;
@@ -23,21 +23,27 @@ static int check_node_type(Node *root, SymTabs* global_vars, SymTabs **decl_func
             int type;
             switch(FIRSTCHILD(root)->label){
                 case Array:
-                    if((type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars)) == -1){
-                    for(int i = 0; i < nb_functions * 2; ++i)
-                        if((type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, decl_functs[i])) >= 0)
-                            return type;
-                    }
-                    else
+                    for(int i = 0; i < nb_functions; ++i)
+                        if(function_name && !strcmp(functions[i]->ident, function_name))
+                            if((type = find_type_in_fct(FIRSTCHILD(FIRSTCHILD(root))->ident, functions[i])) >= 0)
+                                return type;
+                    if((type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars)) >= 0)
                         return type;
-                default:
-                    if((type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars)) == -1){
-                    for(int i = 0; i < nb_functions * 2; ++i)
-                        if((type = find_type_in_sb(FIRSTCHILD(root)->ident, decl_functs[i])) >= 0)
-                            return type;
+                    else{
+                        fprintf(stderr, "Error at line %d: variable %s is not declared\n", FIRSTCHILD(FIRSTCHILD(root))->lineno, FIRSTCHILD(FIRSTCHILD(root))->ident);
+                        exit(SEMANTIC_ERROR);
                     }
-                    else
+                default:    
+                    for(int i = 0; i < nb_functions; ++i)
+                        if(function_name && !strcmp(functions[i]->ident, function_name))
+                            if((type = find_type_in_fct(FIRSTCHILD(root)->ident, functions[i])) >= 0)
+                                return type;
+                    if((type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars)) >= 0)
                         return type;
+                    else{
+                        fprintf(stderr, "Error at line %d: variable %s is not declared\n", FIRSTCHILD(root)->lineno, FIRSTCHILD(root)->ident);
+                        exit(SEMANTIC_ERROR);
+                    }
             }
         default:
             printf("Error: unknown type, check node type\n");
@@ -63,20 +69,20 @@ static void check_reserved_idents(char **reserved_idents, int nb_reserved, Node 
  * @param decl_functs The array of symbol tables for declared functions.
  * @param nb_functions The number of declared functions.
  */
-static void check_affect(Node *root, SymTabs* global_vars, SymTabs **decl_functs, int nb_functions, SymTabs *functions){
+static void check_affect(Node *root, SymTabs* global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(root){
-        if(expression_type(SECONDCHILD(root), global_vars, functions) == VOID){
+        if(expression_type(SECONDCHILD(root), global_vars, functions, nb_functions, function_name) == VOID){
             fprintf(stderr, "Error at line %d: void value cannot be assigned to a variable\n", root->lineno);
             exit(SEMANTIC_ERROR);
         }
-        if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, nb_functions) == CHAR){ //If the firstChild is a char
+        if(check_node_type(FIRSTCHILD(root), global_vars, functions, nb_functions, function_name) == CHAR){ //If the firstChild is a char
             switch(SECONDCHILD(root)->label){ //Check if the second child is an int
                 case Expression:
-                    if(expression_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, functions) == INT)
+                    if(expression_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, functions, nb_functions, function_name) == INT)
                         fprintf(stderr, "Warning line : %d, You are putting an int in a char\n", root->lineno);
                     break;
                 default:
-                    if(check_node_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, decl_functs, nb_functions) == INT)
+                    if(check_node_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, functions, nb_functions, function_name) == INT)
                         fprintf(stderr, "Warning, You are putting an int in a char\n");
             }
         }
@@ -91,15 +97,17 @@ static void check_affect(Node *root, SymTabs* global_vars, SymTabs **decl_functs
  * @param decl_functs The symbol table for declared functions.
  * @param nb_functions The nb_functions of declared functions.
  */
-void check_affectations(Node *root, SymTabs* global_vars, SymTabs **decl_functs, int nb_functions, SymTabs *functions){
+void check_affectations(Node *root, SymTabs* global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(root){
+        if(root->label == Function && FIRSTCHILD(root)->label == Type)
+            function_name = SECONDCHILD(root)->ident;
         if(root->label == Equals){
             printf("Checking affectation\n");
-            check_affect(root, global_vars, decl_functs, nb_functions, functions);
+            check_affect(root, global_vars, functions, nb_functions, function_name);
             printf("Affectation checked\n");
         }
-        check_affectations(FIRSTCHILD(root), global_vars, decl_functs, nb_functions, functions);
-        check_affectations(root->nextSibling, global_vars, decl_functs, nb_functions, functions);
+        check_affectations(FIRSTCHILD(root), global_vars, functions, nb_functions, function_name);
+        check_affectations(root->nextSibling, global_vars, functions, nb_functions, function_name);
     }
 }
 
@@ -113,32 +121,36 @@ void check_affectations(Node *root, SymTabs* global_vars, SymTabs **decl_functs,
  * The function is recursive and applies the same check to the first child and next sibling of 'root'.
  *
  * @param global_vars A pointer to the symbol table of global variables.
- * @param decl_functions A pointer to an array of symbol tables for declared functions. Each function has two symbol tables,
+ * @param functions A pointer to an array of symbol tables for declared functions. Each function has two symbol tables,
  * one for parameters and one for local variables, stored consecutively in the array.
- * @param nb_functions The number of declared functions. This is used to iterate over 'decl_functions'.
+ * @param nb_functions The number of declared functions. This is used to iterate over 'functions'.
  * @param root A pointer to the root of the AST to check.
  */
-static void check_decl_in_fct(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions, Node *root, char **reserved_idents, int nb_reserved){
+static void check_decl_in_fct(SymTabs *global_vars, SymTabsFct **functions, int nb_functions, Node *root, char **reserved_idents, int nb_reserved, char *function_name){
     if(root) {
+        if(root->label == Function && FIRSTCHILD(root)->label == Type){
+            function_name = SECONDCHILD(root)->ident;
+        }
         if (root->label == Variable) {
             int is_declared = 0;
             char *s = FIRSTCHILD(root)->label == Array ? FIRSTCHILD(root)->firstChild->ident : FIRSTCHILD(root)->ident;
-            for (int i = 0; i < nb_functions * 2; ++i)
-                if (check_in_table(*decl_functions[i], s))
-                    is_declared = 1;
+            for (int i = 0; i < nb_functions; ++i)
+                if(function_name && !strcmp(function_name, functions[i]->ident))
+                    if (check_in_table_fct(functions[i]->parameters, s) || check_in_table_fct(functions[i]->variables, s))
+                        is_declared = 1;
             if (check_in_table(*global_vars, s))
                 is_declared = 1;
             if (!is_declared){
-                fprintf(stderr, "Error: variable %s is not declared\n", s);
+                fprintf(stderr, "Error line %d : variable %s is not declared\n", FIRSTCHILD(root)->lineno, s);
                 exit(SEMANTIC_ERROR);
             }
         }
-        check_decl_in_fct(global_vars, decl_functions, nb_functions, FIRSTCHILD(root), reserved_idents, nb_reserved);
-        check_decl_in_fct(global_vars, decl_functions, nb_functions, root->nextSibling, reserved_idents, nb_reserved);
+        check_decl_in_fct(global_vars, functions, nb_functions, FIRSTCHILD(root), reserved_idents, nb_reserved, function_name);
+        check_decl_in_fct(global_vars, functions, nb_functions, root->nextSibling, reserved_idents, nb_reserved, function_name);
     }
 }
 
-static void check_decl_in_globals(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions, Node *root, char **reserved_idents, int nb_reserved){
+static void check_decl_in_globals(Node *root, char **reserved_idents, int nb_reserved){
     if(root) {
         if (root->label == Type) {
             Node *current = root;
@@ -173,21 +185,21 @@ static void check_decl_in_globals(SymTabs *global_vars, SymTabs **decl_functions
  *         - VOID if the function returns void.
  *         - UNKNOWN if the function returns an unknown type.
  */
-static void check_different_idents(SymTabs *first, SymTabs *second){
-    for(Table *current = first->first; current; current = current->next)
-        if(check_in_table(*second, current->var.ident)){
+static void check_different_idents(Table *first, Table *second){
+    for(Table *current = first; current; current = current->next)
+        if(check_in_table_fct(second, current->var.ident)){
             fprintf(stderr, "Error at line %d: variable %s is declared in the function and is a parameter\n", current->var.lineno, current->var.ident);
             exit(SEMANTIC_ERROR);
         }
 }
 
-static void check_return_type(Node *root, int function_type, SymTabs *global_vars, SymTabs *functions){
+static void check_return_type(Node *root, int function_type, SymTabs *global_vars, SymTabsFct **functions, int nb_fcts, char *function_name){
     if(root){
         if(root->label == Return){
             int return_type;
             switch(root->firstChild->label){
                 case Expression:
-                    return_type = expression_type(FIRSTCHILD(root), global_vars, functions);
+                    return_type = expression_type(FIRSTCHILD(root), global_vars, functions, nb_fcts, function_name);
                     break;
                 default:
                     return_type = VOID;
@@ -202,24 +214,24 @@ static void check_return_type(Node *root, int function_type, SymTabs *global_var
                     fprintf(stderr, "Warning at line %d: function returning %s is returning %s\n", root->lineno, function_type == INT ? "an int" : "a char", return_type == INT ? "an int" : "a char");
                 }
                 else if(return_type <= VOID){
-                    fprintf(stderr, "Warning at line %d: function returning %s must return a value\n", root->lineno, function_type == INT ? "int" : "char");
-                    //exit(SEMANTIC_ERROR);
+                    fprintf(stderr, "Warning at line %d: function returning %s should return a value\n", root->lineno, function_type == INT ? "int" : "char");
                 }
             }
         }
-        check_return_type(FIRSTCHILD(root), function_type, global_vars, functions);
-        check_return_type(root->nextSibling, function_type, global_vars, functions);
+        check_return_type(FIRSTCHILD(root), function_type, global_vars, functions, nb_fcts, function_name);
+        check_return_type(root->nextSibling, function_type, global_vars, functions, nb_fcts, function_name);
     }
 }
 
-static void check_idents(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions){
+static void check_idents(SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+    char * function_name = NULL;
     Node *current = FIRSTCHILD(SECONDCHILD(node));
     int reserved_idents_size = 4; //change if reserved_idents is changed
     char* reserved_idents[] = {"getint", "putint", "getchar", "putchar"}; 
-    for(int i = 0; i < nb_functions; i += 2)
-        check_different_idents(decl_functions[i], decl_functions[i+1]);
-    check_decl_in_globals(global_vars, decl_functions, nb_functions, FIRSTCHILD(FIRSTCHILD(node)), reserved_idents, reserved_idents_size);
-    check_decl_in_fct(global_vars, decl_functions, nb_functions, SECONDCHILD(node), reserved_idents, reserved_idents_size);
+    for(int i = 0; i < nb_functions; i++)
+        check_different_idents(functions[i]->parameters, functions[i]->variables);
+    check_decl_in_globals(FIRSTCHILD(FIRSTCHILD(node)), reserved_idents, reserved_idents_size);
+    check_decl_in_fct(global_vars, functions, nb_functions, FIRSTCHILD(SECONDCHILD(node)), reserved_idents, reserved_idents_size, function_name);
     while(current){
         if(current->label == Function){
             if(check_in_table(*global_vars, SECONDCHILD(current)->ident)){
@@ -254,21 +266,22 @@ static void check_existing_main(Node *root){
     }
 }
 
-static void check_functions(SymTabs *global_vars, SymTabs *functions){
+static void check_functions(SymTabs *global_vars, SymTabsFct **functions, int nb_fcts){
     Node *current = FIRSTCHILD(SECONDCHILD(node));
     int function_type; //-2 Unknown, -1 void, 0 for char, 1 for int
     check_existing_main(current);
     while(current){
         if(current->label == Function){
             function_type = get_function_type(current);
-            check_return_type(FIRSTCHILD(FOURTHCHILD(current)), function_type, global_vars, functions);
+            check_return_type(FIRSTCHILD(FOURTHCHILD(current)), function_type, global_vars, functions, nb_fcts, SECONDCHILD(current)->ident);
         }
         current = current->nextSibling;
     }
 }
 
-static void check_types(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions, SymTabs *functions){
-    check_affectations(node, global_vars, decl_functions, nb_functions, functions);
+static void check_types(SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+    char *function_name = NULL;
+    check_affectations(node, global_vars, functions, nb_functions, function_name);
     return;
 }
 
@@ -305,7 +318,7 @@ int expression_result(Node *root){
     }
 }
 
-static void check_arrays(SymTabs *global_vars, SymTabs *functions){
+static void check_arrays(SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
     Node *globals = FIRSTCHILD(FIRSTCHILD(node));
     while(globals){
         Node *current = FIRSTCHILD(globals);
@@ -325,13 +338,13 @@ static void check_arrays(SymTabs *global_vars, SymTabs *functions){
 /**
  * @brief Checks the semantics of the program.
  */
-void semantic_check(SymTabs *global_vars, SymTabs **decl_functions, int nb_functions, SymTabs *functions){
-    check_idents(global_vars, decl_functions, nb_functions);
+void semantic_check(SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+    check_idents(global_vars, functions, nb_functions);
     printf("Check idents done\n");
-    check_functions(global_vars, functions);
+    check_functions(global_vars, functions, nb_functions);
     printf("Check functions done\n");
-    check_types(global_vars, decl_functions, nb_functions, functions);
+    check_types(global_vars, functions, nb_functions);
     printf("Check types done\n");
-    check_arrays(global_vars, functions);
+    check_arrays(global_vars, functions, nb_functions);
     printf("Check arrays done\n");
 }
