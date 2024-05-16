@@ -33,11 +33,18 @@ int find_type_in_sb(char *var_name, SymTabs *table){
 
 int find_type_in_fct(char *var_name, SymTabsFct *table){
     for (Table *current = table->parameters; current; current = current->next)
-        if (strcmp(current->var.ident, var_name) == 0)
+        if (!strcmp(current->var.ident, var_name))
             return current->var.is_int;
     for (Table *current = table->variables; current; current = current->next)
-        if (strcmp(current->var.ident, var_name) == 0)
+        if (!strcmp(current->var.ident, var_name))
             return current->var.is_int;
+    return UNKNOWN;
+}
+
+int check_is_array(char *var_name, Table *table){
+    for (Table *current = table; current; current = current->next)
+        if (!strcmp(current->var.ident, var_name))
+            return current->var.is_array;
     return UNKNOWN;
 }
 

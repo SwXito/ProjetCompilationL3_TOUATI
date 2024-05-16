@@ -17,6 +17,7 @@
 
 #define EXIT_ERROR 3
 #define SEMANTIC_ERROR 2
+#define SYNTAX_ERROR 1
 #define INT 1
 #define CHAR 0
 #define VOID -1
@@ -78,6 +79,8 @@ int count_functions(); ///< Function to count the number of functions in the tre
 int find_type_in_sb(char *var, SymTabs *table); ///< Function to find the type of a variable in the symbol table.
 
 int find_type_in_fct(char *var_name, SymTabsFct *table); ///< Function to find the type of a variable in the function table.
+
+int check_is_array(char *var_name, Table *table); ///< Function to check if a variable is an array.
 
 SymTabs* creatSymbolsTable(); ///< Function to create a new symbol table.
 

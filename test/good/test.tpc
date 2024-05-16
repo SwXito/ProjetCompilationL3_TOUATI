@@ -9,7 +9,12 @@ int main(int caca){
     return 1;
 }
 
-int jsp(int caca){
-    tab[0] = 2;
+int jsp(int caca, char pipi){
+    array[0] = x;
+    putint(array[0] || array[0]);
+    while(array[0]){
+        return array[0];
+    }
+    x = putint(array);
     return caca;
 }
