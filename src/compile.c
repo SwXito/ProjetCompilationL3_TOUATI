@@ -56,15 +56,16 @@ int check_is_array(char *var_name, Table *table){
  */
 int check_in_table(SymTabs t, char *s){
     for(Table *current = t.first; current; current = current->next)
-        if (strcmp(current->var.ident, s) == 0)
+        if (!strcmp(current->var.ident, s))
             return 1;
     return 0;
 }
 
 int check_in_table_fct(Table* t, char *s){
-    for(Table *current = t; current; current = current->next)
-        if (strcmp(current->var.ident, s) == 0)
+    for(Table *current = t; current; current = current->next){
+        if (!strcmp(current->var.ident, s))
             return 1;
+    }
     return 0;
 }
 
@@ -149,7 +150,7 @@ static void add_to_param_fct(SymTabsFct *t, Node *root, char * type, int is_arra
         t->parameters = table;
     }
     else{
-        fprintf(stderr, "Error line %d: variable %s already declared\n", root->lineno, root->ident);
+        fprintf(stderr, "Error line %d: variable %s is already a parameter\n", root->lineno, root->ident);
         exit(SEMANTIC_ERROR);
     }
 }
@@ -201,10 +202,14 @@ static void fill_param_fcts(Node *root, SymTabsFct *t){
     Node *tmp = root->firstChild;
     while(tmp){
         if(tmp->label == Type && FIRSTCHILD(tmp)){
-            if(FIRSTCHILD(tmp)->label == Array)
-                add_to_param_fct(t, FIRSTCHILD(FIRSTCHILD(tmp)), tmp->ident, 1, 0); //change size
-            else
-                add_to_param_fct(t, FIRSTCHILD(tmp), tmp->ident, 0, 0);
+            Node *current = FIRSTCHILD(tmp);
+            while(current){
+                if(current->label == Array)
+                    add_to_param_fct(t, FIRSTCHILD(current), tmp->ident, 1, 0); //change size
+                else
+                    add_to_param_fct(t, current, tmp->ident, 0, 0);
+                current = current->nextSibling;
+            }
         }
         tmp = tmp->nextSibling;
     }
@@ -216,13 +221,17 @@ static void fill_param_fcts(Node *root, SymTabsFct *t){
  * @param root The root node of the tree.
  */
 void fill_vars_fcts(Node *root, SymTabsFct* t){
-    Node *tmp = FIRSTCHILD(root);
+    Node *tmp = root->firstChild;
     while(tmp){
         if(tmp->label == Type && FIRSTCHILD(tmp)){
-            if(FIRSTCHILD(tmp)->label == Array)
-                add_to_vars_fct(t, FIRSTCHILD(FIRSTCHILD(tmp)), tmp->ident, 1, 0);
-            else
-                add_to_vars_fct(t, FIRSTCHILD(tmp), tmp->ident, 0, 0);
+            Node *current = FIRSTCHILD(tmp);
+            while(current){
+                if(current->label == Array)
+                    add_to_vars_fct(t, FIRSTCHILD(current), tmp->ident, 1, 0); //change size
+                else
+                    add_to_vars_fct(t, current, tmp->ident, 0, 0);
+                current = current->nextSibling;
+            }
         }
         tmp = tmp->nextSibling;
     }

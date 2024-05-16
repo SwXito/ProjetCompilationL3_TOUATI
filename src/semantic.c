@@ -1,63 +1,36 @@
 #include "semantic.h"
 
-/**
- * Checks the type of a given node in the abstract syntax tree.
- * 
- * @param root The root node of the abstract syntax tree.
- * @param global_vars The symbol table for global variables.
- * @param decl_functs An array of symbol tables for declared functions.
- * @param nb_functions The number of declared functions.
- * @return The type of the node:
- *         - INT if the node is a number.
- *         - CHAR if the node is a character.
- *         - The type of the variable if the node is a variable.
- *         - UNKNOWN if the node is of an unknown type.
- */
-static int check_node_type(Node *root, SymTabs* global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
-    switch(root->label){
-        case Num:
-            return INT;
-        case Character:
-            return CHAR;
-        case Variable:;
-            int type;
-            switch(FIRSTCHILD(root)->label){
-                case Array:
-                    for(int i = 0; i < nb_functions; ++i)
-                        if(function_name && !strcmp(functions[i]->ident, function_name))
-                            if((type = find_type_in_fct(FIRSTCHILD(FIRSTCHILD(root))->ident, functions[i])) >= 0)
-                                return type;
-                    if((type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars)) >= 0)
-                        return type;
-                    else{
-                        fprintf(stderr, "Error at line %d: variable %s is not declared\n", FIRSTCHILD(FIRSTCHILD(root))->lineno, FIRSTCHILD(FIRSTCHILD(root))->ident);
-                        exit(SEMANTIC_ERROR);
-                    }
-                default:    
-                    for(int i = 0; i < nb_functions; ++i)
-                        if(function_name && !strcmp(functions[i]->ident, function_name))
-                            if((type = find_type_in_fct(FIRSTCHILD(root)->ident, functions[i])) >= 0)
-                                return type;
-                    if((type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars)) >= 0)
-                        return type;
-                    else{
-                        fprintf(stderr, "Error at line %d: variable %s is not declared\n", FIRSTCHILD(root)->lineno, FIRSTCHILD(root)->ident);
-                        exit(SEMANTIC_ERROR);
-                    }
-            }
-        default:
-            printf("Error: unknown type, check node type\n");
-            return UNKNOWN;
-    }
-}
-
-
 static void check_reserved_idents(char **reserved_idents, int nb_reserved, Node *root){
     for(int i = 0; i < nb_reserved; ++i)
         if(!strcmp(root->ident, reserved_idents[i])){
             fprintf(stderr, "Error at line %d: %s is a reserved identifier\n", root->lineno, root->ident);
             exit(SEMANTIC_ERROR);
         }
+}
+
+static int left_value_type(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    int type;
+    switch(FIRSTCHILD(root)->label){
+        case Array:
+            for(int i = 0; i < nb_functions; ++i)
+                if(function_name && !strcmp(functions[i]->ident, function_name)){
+                    if((type = find_type_in_fct(FIRSTCHILD(FIRSTCHILD(root))->ident, functions[i])) >= 0)
+                        return type;
+                    if((type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars)) >= 0)
+                        return type;
+                }
+            return UNKNOWN;
+        default:
+            for(int i = 0; i < nb_functions; ++i)
+                if(function_name && !strcmp(functions[i]->ident, function_name)){
+                    if((type = find_type_in_fct(FIRSTCHILD(root)->ident, functions[i])) >= 0)
+                        return type;
+                    if((type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars)) >= 0)
+                        return type;
+                }
+            return UNKNOWN;
+    }
+
 }
 
 /**
@@ -75,16 +48,9 @@ static void check_affect(Node *root, SymTabs* global_vars, SymTabsFct **function
             fprintf(stderr, "Error at line %d: void value cannot be assigned to a variable\n", root->lineno);
             exit(SEMANTIC_ERROR);
         }
-        if(check_node_type(FIRSTCHILD(root), global_vars, functions, nb_functions, function_name) == CHAR){ //If the firstChild is a char
-            switch(SECONDCHILD(root)->label){ //Check if the second child is an int
-                case Expression:
-                    if(expression_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, functions, nb_functions, function_name) == INT)
-                        fprintf(stderr, "Warning line : %d, You are putting an int in a char\n", root->lineno);
-                    break;
-                default:
-                    if(check_node_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, functions, nb_functions, function_name) == INT)
-                        fprintf(stderr, "Warning, You are putting an int in a char\n");
-            }
+        if(left_value_type(FIRSTCHILD(root), global_vars, functions, nb_functions, function_name) == CHAR){ //If the firstChild is a char
+            if(expression_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, functions, nb_functions, function_name) == INT)
+                fprintf(stderr, "Warning line : %d, You are putting an int in a char\n", root->lineno);
         }
     }
 }
