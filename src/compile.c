@@ -44,6 +44,13 @@ int check_in_table(SymTabs t, char *s){
     return 0;
 }
 
+int check_in_table_fct(Table* t, char *s){
+    for(Table *current = t; current; current = current->next)
+        if (strcmp(current->var.ident, s) == 0)
+            return 1;
+    return 0;
+}
+
 /**
  * @brief Creates a new symbol table.
  * @return A pointer to the newly created symbol table.
@@ -52,6 +59,16 @@ SymTabs* creatSymbolsTable(){
     SymTabs* sb = (SymTabs*) try(malloc(sizeof(SymTabs)), NULL);
     sb->first = NULL;
     sb->offset = 0;
+    return sb;
+}
+
+SymTabsFct* creatSymbolsTableFct(char *ident, int type, int lineno){
+    SymTabsFct* sb = (SymTabsFct*) try(malloc(sizeof(SymTabsFct)), NULL);
+    sb->ident = ident;
+    sb->parameters = NULL;
+    sb->variables = NULL;
+    sb->lineno = lineno;
+    sb->type = type;
     return sb;
 }
 
@@ -93,6 +110,46 @@ static void add_to_table(SymTabs *t, Node *root, char * type, int is_array, int 
             t->offset += table->var.is_int ? 4 : 1;
         table->next = t->first;
         t->first = table;
+    }
+    else{
+        fprintf(stderr, "Error line %d: variable %s already declared\n", root->lineno, root->ident);
+        exit(SEMANTIC_ERROR);
+    }
+}
+
+static void add_to_param_fct(SymTabsFct *t, Node *root, char * type, int is_array, int size){
+    if(!check_in_table_fct(t->parameters, root->ident)){
+        Table *table = (Table*) try(malloc(sizeof(Table)), NULL);
+
+        table->var.ident = strdup(root->ident);
+        table->var.is_int = check_type(type);
+        table->var.lineno = root->lineno;
+        table->var.is_array = is_array;
+        table->var.size = size;
+
+        table->var.deplct = 0;
+        table->next = t->parameters;
+        t->parameters = table;
+    }
+    else{
+        fprintf(stderr, "Error line %d: variable %s already declared\n", root->lineno, root->ident);
+        exit(SEMANTIC_ERROR);
+    }
+}
+
+static void add_to_vars_fct(SymTabsFct *t, Node *root, char * type, int is_array, int size){
+    if(!check_in_table_fct(t->variables, root->ident)){
+        Table *table = (Table*) try(malloc(sizeof(Table)), NULL);
+
+        table->var.ident = strdup(root->ident);
+        table->var.is_int = check_type(type);
+        table->var.lineno = root->lineno;
+        table->var.is_array = is_array;
+        table->var.size = size;
+        
+        table->var.deplct = 0;
+        table->next = t->variables;
+        t->variables = table;
     }
     else{
         fprintf(stderr, "Error line %d: variable %s already declared\n", root->lineno, root->ident);
@@ -720,69 +777,44 @@ static int max(int a, int b){
  * @return The type of the node. Returns -2 if the node is NULL.
  */
 int expression_type(Node *root, SymTabs *global_vars, SymTabs *functions){
-    if(root){
-        int type;
-        switch(root->label){
-            case Num:
-                type = INT;
-                break;
-            case Character:
+    int type, expr1 = UNKNOWN, expr2 = UNKNOWN;
+    switch(root->label){
+        case Num:
+            type = INT;
+            break;
+        case Character:
+            type = CHAR;
+            break;
+        case Function:
+            if(!strcmp(FIRSTCHILD(root)->ident, "getchar")){
                 type = CHAR;
-                break;
-            case Function:
-                if(!strcmp(FIRSTCHILD(root)->ident, "getchar")){
-                    type = CHAR;
-                }else if(!strcmp(FIRSTCHILD(root)->ident, "getint")){
-                    type = INT;
-                }else{
-                    type = find_type_in_sb(FIRSTCHILD(root)->ident, functions);
-                }
-                break;
-            case Not:
+            }else if(!strcmp(FIRSTCHILD(root)->ident, "getint")){
                 type = INT;
-                break;
-            case Order:
-                type = INT;
-                break;
-            case Eq:
-                type = INT;
-                break;
-            case Or:
-                type = INT;
-                break;
-            case And:
-                type = INT;
-                break;
-            case Addsub:
-                type = INT;
-                break;
-            case Divstar:
-                type = INT;
-                break;
-            case Equals:
-                type = INT;
-                break;
-            case Variable:
-                switch(FIRSTCHILD(root)->label){
-                    case Array:
-                        type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars);
-                        break;
-                    default:
-                        type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars);
-                }
-                break;
-            default:
-                type = UNKNOWN;
-        }
-        int expr1 = expression_type(FIRSTCHILD(root), global_vars, functions);
-        int expr2 = expression_type(root->nextSibling, global_vars, functions);
-        if(expr1 == VOID || expr2 == VOID){
-            fprintf(stderr, "Error line %d: void expression\n", root->lineno);
-            exit(SEMANTIC_ERROR);
-        }
-        return max(type, max(expr1, expr2));
+            }else{
+                type = find_type_in_sb(FIRSTCHILD(root)->ident, functions);
+            }
+            break;
+        case Variable:
+            switch(FIRSTCHILD(root)->label){
+                case Array:
+                    type = find_type_in_sb(FIRSTCHILD(FIRSTCHILD(root))->ident, global_vars);
+                    break;
+                default:
+                    type = find_type_in_sb(FIRSTCHILD(root)->ident, global_vars);
+            }
+            break;
+        default:
+            type = INT;
     }
-    return UNKNOWN;
+    if(FIRSTCHILD(root))
+        expr1 = expression_type(FIRSTCHILD(root), global_vars, functions);
+    if(root->nextSibling)
+        expr2 = expression_type(root->nextSibling, global_vars, functions);
+    if(expr1 == VOID || expr2 == VOID || type == VOID){
+        fprintf(stderr, "Error line %d: void expression\n", root->lineno);
+        exit(SEMANTIC_ERROR);
+    }
+    return max(type, max(expr1, expr2));
 }
 
 /**

@@ -59,13 +59,31 @@ typedef struct{
   Table* first;     ///< Pointer to the first table.
 }SymTabs;
 
+/**
+ * @brief Structure representing a function symbol table.
+ *
+ * A function symbol table contains a table of parameters, a table of variables,
+ * a name, a type, and a line number.
+ */
+typedef struct{
+  Table* parameters;
+  Table* variables;
+  char *ident;
+  int type;
+  int lineno;
+}SymTabsFct;
+
 int count_functions(); ///< Function to count the number of functions in the tree.
 
 int find_type_in_sb(char *var, SymTabs *table); ///< Function to find the type of a variable in the symbol table.
 
 SymTabs* creatSymbolsTable(); ///< Function to create a new symbol table.
 
+SymTabsFct* creatSymbolsTableFct(char *ident, int type, int lineno); ///< Function to create a new function symbol table.
+
 int check_in_table(SymTabs t, char *s); ///< Function to check_in_table if a symbol exists in the table.
+
+int check_in_table_fct(Table* t, char *s); ///< Function to check if a symbol exists in the function table.
 
 void fill_table_vars(SymTabs* t, Node *root); ///< Function to fill the table with variables.
 

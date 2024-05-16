@@ -238,12 +238,14 @@ Instr:
     |  RETURN ';' {
         $$ = makeNode(Return);
         $$->ident = strdup($1);
+        Node * tmp = makeNode(Void);
+        addChild($$, tmp);
         }
     |  '{' SuiteInstr '}' {
         $$ = $2;
         }
     |  ';' {
-        $$ = makeNode(None);
+        $$ = makeNode(Void);
         }
     ;
 Exp :  Exp OR TB {

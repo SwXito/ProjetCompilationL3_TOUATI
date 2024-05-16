@@ -40,6 +40,7 @@ static int check_node_type(Node *root, SymTabs* global_vars, SymTabs **decl_func
                         return type;
             }
         default:
+            printf("Error: unknown type, check node type\n");
             return UNKNOWN;
     }
 }
@@ -71,11 +72,11 @@ static void check_affect(Node *root, SymTabs* global_vars, SymTabs **decl_functs
         if(check_node_type(FIRSTCHILD(root), global_vars, decl_functs, nb_functions) == CHAR){ //If the firstChild is a char
             switch(SECONDCHILD(root)->label){ //Check if the second child is an int
                 case Expression:
-                    if(expression_type(SECONDCHILD(root), global_vars, functions) == INT)
+                    if(expression_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, functions) == INT)
                         fprintf(stderr, "Warning line : %d, You are putting an int in a char\n", root->lineno);
                     break;
                 default:
-                    if(check_node_type(SECONDCHILD(root), global_vars, decl_functs, nb_functions) == INT)
+                    if(check_node_type(FIRSTCHILD(SECONDCHILD(root)), global_vars, decl_functs, nb_functions) == INT)
                         fprintf(stderr, "Warning, You are putting an int in a char\n");
             }
         }
@@ -183,9 +184,16 @@ static void check_different_idents(SymTabs *first, SymTabs *second){
 static void check_return_type(Node *root, int function_type, SymTabs *global_vars, SymTabs *functions){
     if(root){
         if(root->label == Return){
-            int return_type = expression_type(FIRSTCHILD(root), global_vars, functions);
-            if(function_type <= VOID){
-                if(return_type > VOID){
+            int return_type;
+            switch(root->firstChild->label){
+                case Expression:
+                    return_type = expression_type(FIRSTCHILD(root), global_vars, functions);
+                    break;
+                default:
+                    return_type = VOID;
+            }       
+            if(function_type == VOID){
+                if(return_type != VOID){
                     fprintf(stderr, "Error at line %d: function returning void cannot return a value\n", root->lineno);
                     exit(SEMANTIC_ERROR);
                 }
@@ -194,7 +202,7 @@ static void check_return_type(Node *root, int function_type, SymTabs *global_var
                     fprintf(stderr, "Warning at line %d: function returning %s is returning %s\n", root->lineno, function_type == INT ? "an int" : "a char", return_type == INT ? "an int" : "a char");
                 }
                 else if(return_type <= VOID){
-                    fprintf(stderr, "Error at line %d: function returning %s must return a value\n", root->lineno, function_type == INT ? "int" : "char");
+                    fprintf(stderr, "Warning at line %d: function returning %s must return a value\n", root->lineno, function_type == INT ? "int" : "char");
                     //exit(SEMANTIC_ERROR);
                 }
             }
@@ -297,53 +305,20 @@ int expression_result(Node *root){
     }
 }
 
-static void check_array_acces(Node *root, SymTabs *global_vars, SymTabs *functions){
-    if(root){
-        if(root->label == Array){
-            switch(FIRSTCHILD(FIRSTCHILD(root))->label){
-                case Num:
-                    if(FIRSTCHILD(FIRSTCHILD(root))->num < 0){
-                        fprintf(stderr, "Error at line %d: array index can't be negative\n", FIRSTCHILD(FIRSTCHILD(root))->lineno);
-                        exit(SEMANTIC_ERROR);
-                    }
-                    break;
-                case Expression:
-                    if(expression_type(FIRSTCHILD(FIRSTCHILD(root)), global_vars, functions) != INT){
-                        fprintf(stderr, "Error at line %d: array index must be an int\n", FIRSTCHILD(FIRSTCHILD(root))->lineno);
-                        exit(SEMANTIC_ERROR);
-                    }
-                    else{
-                        if(expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)))) < 0){
-                            fprintf(stderr, "Error at line %d: array index can't be negative\n", FIRSTCHILD(FIRSTCHILD(root))->lineno);
-                            exit(SEMANTIC_ERROR);
-                        }
-                    }
-                    break;
-                default:
-                    fprintf(stderr, "Error at line %d: array index must be an int\n", FIRSTCHILD(FIRSTCHILD(root))->lineno);
-                    exit(SEMANTIC_ERROR);
-            }
-        }
-        check_array_acces(FIRSTCHILD(root), global_vars, functions);
-        check_array_acces(root->nextSibling, global_vars, functions);
-    }
-}
-
 static void check_arrays(SymTabs *global_vars, SymTabs *functions){
     Node *globals = FIRSTCHILD(FIRSTCHILD(node));
-    Node *fonction = FIRSTCHILD(SECONDCHILD(node));
     while(globals){
-        if(FIRSTCHILD(globals)->label == Array){
-            if(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(globals)))->num <= 0){
-                fprintf(stderr, "Error at line %d: array size must be greater than 0\n", FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(globals)))->lineno);
-                exit(SEMANTIC_ERROR);
+        Node *current = FIRSTCHILD(globals);
+        while(current){
+            if(current->label == Array){
+                if(FIRSTCHILD(FIRSTCHILD(current))->num <= 0){
+                    fprintf(stderr, "Error at line %d: array (%s) size must be greater than 0\n", FIRSTCHILD(FIRSTCHILD(current))->lineno, FIRSTCHILD(current)->ident);
+                    exit(SEMANTIC_ERROR);
+                }
             }
+            current = current->nextSibling;
         }
         globals = globals->nextSibling;
-    }
-    while(fonction){
-        check_array_acces(FIRSTCHILD(fonction), global_vars, functions);
-        fonction = fonction->nextSibling;
     }
 }
 
