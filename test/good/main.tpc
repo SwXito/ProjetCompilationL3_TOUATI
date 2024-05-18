@@ -1,4 +1,20 @@
-int main;
-int tmp(void){
-    
+int impair(int n) {
+    if (n == 0) {
+        return 0;
+    }
+    return pair(n - 1, 10000); // On émet un warning, une erreur sur le nombre de paramètres, où on appelle juste en respectant les conventions AMD64 ?
+}
+
+int pair(int n) {
+    if (n == 0) {
+        return 1;
+    }
+    return impair(n - 1);
+}
+
+int main(void) {
+    int res1;
+
+    res1 = impair(17);
+    putint(res1);
 }

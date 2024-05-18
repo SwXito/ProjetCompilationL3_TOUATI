@@ -65,7 +65,7 @@ static void check_affect(Node *root, SymTabs* global_vars, SymTabsFct **function
  */
 void check_affectations(Node *root, SymTabs* global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(root){
-        if(root->label == Function && FIRSTCHILD(root)->label == Type)
+        if(root->label == Function && (FIRSTCHILD(root)->label == Type || FIRSTCHILD(root)->label == Void))
             function_name = SECONDCHILD(root)->ident;
         if(root->label == Equals){
             printf("Checking affectation\n");
@@ -94,16 +94,18 @@ void check_affectations(Node *root, SymTabs* global_vars, SymTabsFct **functions
  */
 static void check_decl_in_fct(SymTabs *global_vars, SymTabsFct **functions, int nb_functions, Node *root, char **reserved_idents, int nb_reserved, char *function_name){
     if(root) {
-        if(root->label == Function && FIRSTCHILD(root)->label == Type){
+        if(root->label == Function && (FIRSTCHILD(root)->label == Type || FIRSTCHILD(root)->label == Void)){
             function_name = SECONDCHILD(root)->ident;
         }
         if (root->label == Variable) {
             int is_declared = 0;
             char *s = FIRSTCHILD(root)->label == Array ? FIRSTCHILD(root)->firstChild->ident : FIRSTCHILD(root)->ident;
-            for (int i = 0; i < nb_functions; ++i)
-                if(function_name && !strcmp(function_name, functions[i]->ident))
+            for (int i = 0; i < nb_functions; ++i){
+                if(function_name && !strcmp(function_name, functions[i]->ident)){
                     if (check_in_table_fct(functions[i]->parameters, s) || check_in_table_fct(functions[i]->variables, s))
                         is_declared = 1;
+                }
+            }
             if (check_in_table(*global_vars, s))
                 is_declared = 1;
             if (!is_declared){
@@ -241,17 +243,30 @@ int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_
 
 static void check_function_call_args(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(root){
-        int call_nb_params = 0;
+        int call_nb_params = 0, func_params = 0;
         Node *first_param = FIRSTCHILD(root);
         while(first_param && first_param->label != Void){
             call_nb_params++;
             first_param = first_param->nextSibling;
         }
-        for(int i = 0; i < nb_functions; ++i){
-            if(function_name && !strcmp(function_name, functions[i]->ident)){
-                if(call_nb_params != nb_params_function(functions, nb_functions, function_name)){
-                    fprintf(stderr, "Error at line %d: function %s has %d parameters, %d given\n", functions[i]->lineno, function_name, nb_params_function(functions, nb_functions, function_name), call_nb_params);
-                    exit(SEMANTIC_ERROR);
+        if(!strcmp(function_name, "getint") || !strcmp(function_name, "getchar")){
+            if(call_nb_params != 0){
+                fprintf(stderr, "Error at line %d: function %s has 0 parameters, %d given\n", root->lineno, function_name, call_nb_params);
+                exit(SEMANTIC_ERROR);
+            }
+        }else if(!strcmp(function_name, "putint") || !strcmp(function_name, "putchar")){
+            if(call_nb_params != 1){
+                fprintf(stderr, "Error at line %d: function %s has 1 parameter, %d given\n", root->lineno, function_name, call_nb_params);
+                exit(SEMANTIC_ERROR);
+            }
+        }else{
+            for(int i = 0; i < nb_functions; ++i){
+                if(function_name && !strcmp(function_name, functions[i]->ident)){
+                    func_params = nb_params_function(functions, nb_functions, function_name);
+                    if(call_nb_params != func_params){
+                        fprintf(stderr, "Error at line %d: function %s has %d parameters, %d given\n", FIRSTCHILD(root)->lineno, function_name, func_params, call_nb_params);
+                        exit(SEMANTIC_ERROR);
+                    }
                 }
             }
         }
@@ -291,6 +306,15 @@ static void check_function_call(Node *root, SymTabs *global_vars, SymTabsFct **f
     }
 }
 
+static int find_label_return(Node *root){
+    if(root){
+        if(root->label == Return)
+            return 1;
+        return find_label_return(FIRSTCHILD(root)) || find_label_return(root->nextSibling);
+    }
+    return 0;
+}
+
 static void check_functions(SymTabs *global_vars, SymTabsFct **functions, int nb_fcts, char **reserved_idents, int nb_reserved){
     Node *current = FIRSTCHILD(SECONDCHILD(node));
     int function_type; //-2 Unknown, -1 void, 0 for char, 1 for int
@@ -299,7 +323,11 @@ static void check_functions(SymTabs *global_vars, SymTabsFct **functions, int nb
         if(current->label == Function){
             Node *corps = FOURTHCHILD(current);
             function_type = get_function_type(current);
-            check_return_type(FIRSTCHILD(FOURTHCHILD(current)), function_type, global_vars, functions, nb_fcts, SECONDCHILD(current)->ident);
+            if(find_label_return(corps))
+                check_return_type(FIRSTCHILD(FOURTHCHILD(current)), function_type, global_vars, functions, nb_fcts, SECONDCHILD(current)->ident);
+            else if(function_type != VOID){
+                fprintf(stderr, "Warning at line %d: function %s should return a value\n", current->lineno, SECONDCHILD(current)->ident);
+            }
             check_function_call(corps, global_vars, functions, nb_fcts, SECONDCHILD(current)->ident, reserved_idents, nb_reserved);
         }
         current = current->nextSibling;
