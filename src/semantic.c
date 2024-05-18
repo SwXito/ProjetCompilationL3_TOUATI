@@ -189,22 +189,20 @@ static void check_return_type(Node *root, int function_type, SymTabs *global_var
     }
 }
 
-static void check_idents(SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+static void check_idents(SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char **reserved_idents, int nb_reserved){
     char * function_name = NULL;
     Node *current = FIRSTCHILD(SECONDCHILD(node));
-    int reserved_idents_size = 4; //change if reserved_idents is changed
-    char* reserved_idents[] = {"getint", "putint", "getchar", "putchar"}; 
     for(int i = 0; i < nb_functions; i++)
         check_different_idents(functions[i]->parameters, functions[i]->variables);
-    check_decl_in_globals(FIRSTCHILD(FIRSTCHILD(node)), reserved_idents, reserved_idents_size);
-    check_decl_in_fct(global_vars, functions, nb_functions, FIRSTCHILD(SECONDCHILD(node)), reserved_idents, reserved_idents_size, function_name);
+    check_decl_in_globals(FIRSTCHILD(FIRSTCHILD(node)), reserved_idents, nb_reserved);
+    check_decl_in_fct(global_vars, functions, nb_functions, FIRSTCHILD(SECONDCHILD(node)), reserved_idents, nb_reserved, function_name);
     while(current){
         if(current->label == Function){
             if(check_in_table(*global_vars, SECONDCHILD(current)->ident)){
                 fprintf(stderr, "Error at line %d: function %s has the same name as a global variable\n", SECONDCHILD(current)->lineno, SECONDCHILD(current)->ident);
                 exit(SEMANTIC_ERROR);
             }
-            for(int i = 0; i < reserved_idents_size; ++i)
+            for(int i = 0; i < nb_reserved; ++i)
                 if(!strcmp(SECONDCHILD(current)->ident, reserved_idents[i])){
                     fprintf(stderr, "Error at line %d: function %s has the same name as a reserved function\n", SECONDCHILD(current)->lineno, SECONDCHILD(current)->ident);
                     exit(SEMANTIC_ERROR);
@@ -232,14 +230,77 @@ static void check_existing_main(Node *root){
     }
 }
 
-static void check_functions(SymTabs *global_vars, SymTabsFct **functions, int nb_fcts){
+int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_name){
+    int params = 0;
+    for(int i = 0; i < nb_functions; ++i)
+        if(!strcmp(function_name, functions[i]->ident))
+            for(Table *current = functions[i]->parameters; current; current = current->next)
+                params++;
+    return params;
+}
+
+static void check_function_call_args(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    if(root){
+        int call_nb_params = 0;
+        Node *first_param = FIRSTCHILD(root);
+        while(first_param && first_param->label != Void){
+            call_nb_params++;
+            first_param = first_param->nextSibling;
+        }
+        for(int i = 0; i < nb_functions; ++i){
+            if(function_name && !strcmp(function_name, functions[i]->ident)){
+                if(call_nb_params != nb_params_function(functions, nb_functions, function_name)){
+                    fprintf(stderr, "Error at line %d: function %s has %d parameters, %d given\n", functions[i]->lineno, function_name, nb_params_function(functions, nb_functions, function_name), call_nb_params);
+                    exit(SEMANTIC_ERROR);
+                }
+            }
+        }
+        /*for(int i = 0; i < nb_functions; ++i){
+            if(function_name && !strcmp(function_name, functions[i]->ident)){
+                Table *current = functions[i]->parameters;
+                for(Node *param = FIRSTCHILD(root); param; param = param->nextSibling){
+                    if(expression_type(param, global_vars, functions, nb_functions, function_name) > current->var.is_int){
+                        fprintf(stderr, "Warning at line %d: function %s parameter %s is a char, %s given\n", param->lineno, function_name, current->var.ident, expression_type(param, global_vars, functions, nb_functions, function_name) == INT ? "an int" : "a char");
+                    }
+                    current = current->next;
+                }
+            }
+        }*/
+    }
+}
+
+static void check_function_call(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name, char **reserved_idents, int nb_reserved){
+    if(root){
+        if(root->label == Function){
+            Node *parameters = FIRSTCHILD(root)->firstChild;
+            int is_declared = 0;
+            for(int i = 0; i < nb_reserved; ++i)
+                if(!strcmp(FIRSTCHILD(root)->ident, reserved_idents[i]))
+                    is_declared = 1;
+            for(int i = 0; i < nb_functions; ++i)
+                if(FIRSTCHILD(root)->ident && !strcmp(FIRSTCHILD(root)->ident, functions[i]->ident))
+                    is_declared = 1;
+            if(!is_declared){
+                fprintf(stderr, "Error at line %d: function %s is not declared\n", FIRSTCHILD(root)->lineno, FIRSTCHILD(root)->ident);
+                exit(SEMANTIC_ERROR);
+            }
+            check_function_call_args(parameters, global_vars, functions, nb_functions, FIRSTCHILD(root)->ident);
+        }
+        check_function_call(FIRSTCHILD(root), global_vars, functions, nb_functions, function_name, reserved_idents, nb_reserved);
+        check_function_call(root->nextSibling, global_vars, functions, nb_functions, function_name, reserved_idents, nb_reserved);
+    }
+}
+
+static void check_functions(SymTabs *global_vars, SymTabsFct **functions, int nb_fcts, char **reserved_idents, int nb_reserved){
     Node *current = FIRSTCHILD(SECONDCHILD(node));
     int function_type; //-2 Unknown, -1 void, 0 for char, 1 for int
     check_existing_main(current);
     while(current){
         if(current->label == Function){
+            Node *corps = FOURTHCHILD(current);
             function_type = get_function_type(current);
             check_return_type(FIRSTCHILD(FOURTHCHILD(current)), function_type, global_vars, functions, nb_fcts, SECONDCHILD(current)->ident);
+            check_function_call(corps, global_vars, functions, nb_fcts, SECONDCHILD(current)->ident, reserved_idents, nb_reserved);
         }
         current = current->nextSibling;
     }
@@ -391,9 +452,11 @@ static void check_arrays(SymTabs *global_vars, SymTabsFct **functions, int nb_fu
  * @brief Checks the semantics of the program.
  */
 void semantic_check(SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
-    check_idents(global_vars, functions, nb_functions);
+    int reserved_idents_size = 4; //change if reserved_idents is changed
+    char* reserved_idents[] = {"getint", "putint", "getchar", "putchar"}; 
+    check_idents(global_vars, functions, nb_functions, reserved_idents, reserved_idents_size);
     printf("Check idents done\n");
-    check_functions(global_vars, functions, nb_functions);
+    check_functions(global_vars, functions, nb_functions, reserved_idents, reserved_idents_size);
     printf("Check functions done\n");
     check_types(global_vars, functions, nb_functions);
     printf("Check types done\n");

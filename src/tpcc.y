@@ -165,8 +165,8 @@ ListTypVar:
         addSibling($$, arr);
         }
     |  TYPE IDENT '[' ']' {
-        $$ = makeNode(Array);
-        Node * tmp1 = makeNode(Type);
+        $$ = makeNode(Type);
+        Node * tmp1 = makeNode(Array);
         $$->ident = strdup($1);
         Node * tmp2 = makeNode(Ident);
         tmp2->ident = strdup($2);

@@ -2,14 +2,15 @@ int a;
 int x, y, z, tab[1];
 char array[1];
 
-int main(int caca){
+int main(void){
     int zeub;
     array[0] = getint();
     x=!(x==y||x>z);
+    zeub = jsp(tab, 'o');
     return 1;
 }
 
-int jsp(int caca, char pipi){
+int jsp(int caca[], char pipi){
     array[0] = x;
     putint(array[0] || array[0]);
     while(array[0]){
