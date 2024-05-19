@@ -1,5 +1,6 @@
 section .text
 global _putchar
+
 _putchar:
 push rdi
 mov rax, 1

@@ -232,15 +232,6 @@ static void check_existing_main(Node *root){
     }
 }
 
-int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_name){
-    int params = 0;
-    for(int i = 0; i < nb_functions; ++i)
-        if(!strcmp(function_name, functions[i]->ident))
-            for(Table *current = functions[i]->parameters; current; current = current->next)
-                params++;
-    return params;
-}
-
 static void check_function_call_args(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(root){
         int call_nb_params = 0, func_params = 0;

@@ -562,6 +562,29 @@ static void expression_calc(Node *root, FILE * file, SymTabs * global_vars, char
     }
 }
 
+int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_name){
+    int params = 0;
+    for(int i = 0; i < nb_functions; ++i)
+        if(!strcmp(function_name, functions[i]->ident))
+            for(Table *current = functions[i]->parameters; current; current = current->next)
+                params++;
+    return params;
+}
+
+static int get_params(Node *root){
+    int params = 0;
+    if(root){
+        if(root->label == Function){
+            Node *tmp = FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)));
+            while(tmp && tmp->label != Void){
+                params++;
+                tmp = tmp->nextSibling;
+            }
+        }
+    }
+    return params;
+}
+
 /**
  * @brief Performs calculations on a function node and writes the result to a file.
  * @param root The node to perform calculations on.
@@ -569,23 +592,42 @@ static void expression_calc(Node *root, FILE * file, SymTabs * global_vars, char
  * @param global_vars The symbol table for global variables.
  */
 static void function_calc(Node *root, FILE * file, SymTabs * global_vars){
+    int args = get_params(root);
+    Node *tmp = FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)));
+    while(tmp && tmp->label != Void){
+        get_value(tmp, file, global_vars, NULL, NULL);
+        tmp = tmp->nextSibling;
+    }
     fprintf(file, ";Function %s\n", FIRSTCHILD(root)->ident);
-    if(!strcmp(FIRSTCHILD(root)->ident, "getchar")){
+    /*fprintf(file, "mov r11, rsp\n");
+    fprintf(file, "sub rsp, 8\n");
+    fprintf(file, "and rsp, -16\n");
+    fprintf(file, "mov qword [rsp], r11\n");*/
+    if(args >= 1)
+        fprintf(file, "pop rdi\n");
+    if(args >= 2)
+        fprintf(file, "pop rsi\n");
+    if(args >= 3)
+        fprintf(file, "pop rdx\n");
+    if(args >= 4)
+        fprintf(file, "pop rcx\n");
+    if(args >= 5)
+        fprintf(file, "pop r8\n");
+    if(args >= 6)
+        fprintf(file, "pop r9\n");
+    if(!strcmp(FIRSTCHILD(root)->ident, "getchar"))
         fprintf(file, "call _getchar\n");
-        fprintf(file, "push rax\n");
-    }
-    else if(!strcmp(FIRSTCHILD(root)->ident, "getint")){
+    else if(!strcmp(FIRSTCHILD(root)->ident, "getint"))
         fprintf(file, "call _getint\n");
-        fprintf(file, "push rax\n");
-    }
-    else if(!strcmp(FIRSTCHILD(root)->ident, "putint")){
+    else if(!strcmp(FIRSTCHILD(root)->ident, "putint"))
         fprintf(file, "call _putint\n");
-        fprintf(file, "push rax\n");
-    }
-    else if(!strcmp(FIRSTCHILD(root)->ident, "putchar")){
+    else if(!strcmp(FIRSTCHILD(root)->ident, "putchar"))
         fprintf(file, "call _putchar\n");
+    else
+        fprintf(file, "call %s\n", FIRSTCHILD(root)->ident);
+    //fprintf(file, "pop rsp\n");
+    if(get_function_type(root) != VOID)
         fprintf(file, "push rax\n");
-    }
 }
 
 static char *create_label(){
@@ -623,6 +665,22 @@ static void manage_if_then_else(Node *root, FILE *file, SymTabs *global_vars, ch
     }
 }
 
+static void manage_while(Node *root, FILE *file, SymTabs *global_vars, char *begin_label, char *end_label){
+    fprintf(file, "pop rax\n");
+    fprintf(file, "cmp rax, 0\n");
+    fprintf(file, "je %s\n", end_label);
+    switch(SECONDCHILD(root)->label){
+        case Instructions:
+            do_calc(FIRSTCHILD(SECONDCHILD(root)), file, global_vars);
+            break;
+        default:
+            do_calc(SECONDCHILD(root), file, global_vars);
+            break;
+    }
+    fprintf(file, "jmp %s\n", begin_label);
+    fprintf(file, "%s:\n", end_label);
+}
+
 /**
  * @brief Performs calculations on an if node and writes the result to a file.
  * @param root The node to perform calculations on.
@@ -637,6 +695,17 @@ static void if_calc(Node *root, FILE *file, SymTabs *global_vars){
     manage_if_then_else(root, file, global_vars, then_label, else_label);
     free(then_label);
     free(else_label);
+}
+
+static void while_calc(Node *root, FILE *file, SymTabs *global_vars){
+    char *begin_label = create_label();
+    char *end_label = create_label();
+    fprintf(file, ";While\n");
+    fprintf(file, "%s:\n", begin_label);
+    get_value(FIRSTCHILD(root), file, global_vars, begin_label, end_label);
+    manage_while(root, file, global_vars, begin_label, end_label);
+    free(begin_label);
+    free(end_label);
 }
 
 static void eq_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label){
@@ -822,6 +891,15 @@ int do_calc(Node *root, FILE * file, SymTabs *global_vars){
             if_calc(root, file, global_vars);
             printf("End If\n");
             return -1;
+        case While:
+            while_calc(root, file, global_vars);
+            return -1;
+        case Function:
+            if(FIRSTCHILD(root)->label == Type || FIRSTCHILD(root)->label == Void)
+                fprintf(file, "%s:\n", SECONDCHILD(root)->ident);
+            else
+                function_calc(root, file, global_vars);
+            return 0;
         case Return:
             return_calc(root, file, global_vars);
             return 1;
@@ -829,6 +907,10 @@ int do_calc(Node *root, FILE * file, SymTabs *global_vars){
             return 0;
     }
 }
+
+/**
+ * 
+*/
 
 /**
  * Returns the maximum of two integers.
@@ -933,10 +1015,16 @@ void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename){
     fprintf(file, "global _start\n");
     fprintf(file, "section .text\n");
     fprintf(file, "_start:\n");
-    in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, global_vars, file);
+    /*fprintf(file, "mov r11, rsp\n");
+    fprintf(file, "sub rsp, 8\n");
+    fprintf(file, "and rsp, -16\n");
+    fprintf(file, "mov qword [rsp], r11\n");*/
+    fprintf(file, "call main\n");
+    //fprintf(file, "pop rsp\n");
     fprintf(file, "mov rax, 60\n");
     fprintf(file,  "mov rdi, 0\n");
     fprintf(file, "syscall\n");
+    in_depth_course(root, do_calc, NULL, NULL, global_vars, file);
     try(fclose(file));
 }
 
@@ -951,6 +1039,12 @@ int get_function_type(Node *root){
     else if(!strcmp(FIRSTCHILD(root)->ident, "int"))
         return INT;
     else if(!strcmp(FIRSTCHILD(root)->ident, "void"))
+        return VOID;
+    else if(!strcmp(FIRSTCHILD(root)->ident, "getint"))
+        return INT;
+    else if(!strcmp(FIRSTCHILD(root)->ident, "getchar"))
+        return CHAR;
+    else if(!strcmp(FIRSTCHILD(root)->ident, "putint") || !strcmp(FIRSTCHILD(root)->ident, "putchar"))
         return VOID;
     else{
         fprintf(stderr, "Error at line %d: unknown function type\n", FIRSTCHILD(root)->lineno);

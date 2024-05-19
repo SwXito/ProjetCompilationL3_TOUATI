@@ -1,0 +1,33 @@
+int a, res;
+int x, y, z, tab[1], taille[20];
+char array[1];
+
+int main(void){
+    taille[10] = getint();
+    res = 0;
+    while(res < 10){
+        res = res + fibonnaci(x);
+    }
+    return taille[2];
+}
+
+int fibonnaci(int n){
+    if(n == 1)
+        return 1;
+    if(n == 2)
+        return 2;
+    return fibonnaci(n - 1) + fibonnaci(n - 2);
+}
+
+void changeFirst(int tab[], int n){
+    int i, array[1];
+    i = getint();
+    if(1){
+        if(tab[195/2] == 0)
+        tab[i] = tab[-1 * -10] + 1;
+        i = i + 1;
+    }
+    else{
+        tab[20/20] = x && y + 20;
+    }
+}

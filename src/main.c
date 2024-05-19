@@ -33,6 +33,7 @@ static void compile(int argc, char **argv){
     fill_global_vars(global_vars);
     build_global_vars_asm(global_vars, filename);
     functions = fill_decl_functions(nb_func, global_vars, filename);
+    
     semantic_check(global_vars, functions, nb_func);
     if(err == 0){
         parse_args(argc, argv, node, global_vars, functions, nb_func);
@@ -45,6 +46,14 @@ static void compile(int argc, char **argv){
 }
 
 int main(int argc, char *argv[]){
+    /*
+    mov r11, rsp
+    sub rsp, 8
+    and rsp, -16
+    mov qword [rsp], r11
+    call my_function2
+    pop rsp
+    */
     compile(argc, argv);
     return 0;
 }

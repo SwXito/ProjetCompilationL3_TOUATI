@@ -6,12 +6,22 @@ extern _getchar
 _getint:
     mov r12, 0 ; on met 0 dans r12
     mov r10, 1 ; on met 1 dans r10
+    mov r11, rsp
+    sub rsp, 8
+    and rsp, -16
+    mov qword [rsp], r11
     call _getchar ; on récupère un caractère
+    pop rsp
     cmp rax, 45 ; on compare avec '-'
     jne test_digit ; si c'est pas '-' on teste si c'est un chiffre
     mov r10, -1 ; si c'est '-' on met -1 dans r10
 read_digit:
+    mov r11, rsp
+    sub rsp, 8
+    and rsp, -16
+    mov qword [rsp], r11
     call _getchar ; on récupère un caractère
+    pop rsp
 test_digit:
     cmp rax, 48 ; on compare avec '0'
     jl end_read_digit ; si c'est plus petit que 0 on arrête

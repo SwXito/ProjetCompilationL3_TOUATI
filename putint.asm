@@ -8,7 +8,12 @@ _putint:
     jge is_positive ; Si n est positif ou 0, sauter à is_positive
     push rax ; On empile n
     mov rdi, '-' ; On met le signe moins dans rdi
+    mov r11, rsp
+    sub rsp, 8
+    and rsp, -16
+    mov qword [rsp], r11
     call _putchar ; On affiche le signe moins
+    pop rsp
     pop rax ; On dépile n
     neg rax ; rendre n positif
 is_positive:
@@ -33,4 +38,3 @@ print_loop:
     cmp r10, 0
     jne print_loop ; si i n'est pas 0, continuer la boucle
     ret
-
