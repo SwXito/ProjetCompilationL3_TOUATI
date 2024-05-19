@@ -92,13 +92,13 @@ int check_in_table_fct(Table* t, char *s); ///< Function to check if a symbol ex
 
 void fill_table_vars(SymTabs* t, Node *root); ///< Function to fill the table with variables.
 
-void fill_table_fcts(SymTabsFct **t, SymTabs *global_vars, Node *root, int *nb_functions); ///< Function to fill the table with functions.
+void fill_table_fcts(SymTabsFct **t, SymTabs *global_vars, Node *root, int *nb_functions, char *filename); ///< Function to fill the table with functions.
 
 SymTabs* fill_func_parameters_table(Node *root); ///< Function to fill the table with function parameters.
 
 void fill_global_vars(SymTabs* t); ///< Function to fill the table with global variables.
 
-SymTabsFct** fill_decl_functions(int nb_func, SymTabs *global_vars); ///< Function to fill the table with declared functions.
+SymTabsFct** fill_decl_functions(int nb_func, SymTabs *global_vars, char *filename); ///< Function to fill the table with declared functions.
 
 void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymTabs *), void (*table)(SymTabs *, Node *), void (*check)(Node *), SymTabs *t, FILE * file); ///< Function to traverse the tree in depth.
 
@@ -128,8 +128,10 @@ void print_global_vars(SymTabs *t); ///< Function to print the global variables.
 
 void print_functions(SymTabsFct **t, int nb_functions); ///< Function to print the declared functions.
 
-void build_minimal_asm(Node *root, SymTabs *global_vars); ///< Function to build minimal assembly code from the tree.
+void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename); ///< Function to build minimal assembly code from the tree.
 
-void build_global_vars_asm(SymTabs *t); ///< Function to build assembly code for global variables.
+int expression_result(Node *root); ///< Function to get the result of an expression.
+
+void build_global_vars_asm(SymTabs *t, char *filename); ///< Function to build assembly code for global variables.
 
 #endif

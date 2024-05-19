@@ -244,11 +244,11 @@ void fill_vars_fcts(Node *root, SymTabsFct* t){
  * @param root The node to get functions from.
  * @param nb_functions A pointer to the nb_functions of functions.
  */
-void fill_table_fcts(SymTabsFct **t, SymTabs *global_vars, Node *root, int *nb_functions){
+void fill_table_fcts(SymTabsFct **t, SymTabs *global_vars, Node *root, int *nb_functions, char *filename){
     Node * tmp = root;
     if(tmp->label == Function){
         if(!strcmp(SECONDCHILD(tmp)->ident, "main"))
-            build_minimal_asm(tmp, global_vars);
+            build_minimal_asm(tmp, global_vars, filename);
         t[(*nb_functions)] = creatSymbolsTableFct(SECONDCHILD(tmp)->ident, check_type(FIRSTCHILD(tmp)->ident), FIRSTCHILD(tmp)->lineno);
         fill_param_fcts(THIRDCHILD(tmp), t[*nb_functions]);
         fill_vars_fcts(FOURTHCHILD(tmp), t[*nb_functions]);
@@ -273,12 +273,12 @@ SymTabs* fill_func_parameters_table(Node *root){
  * @param nb_functions A pointer to the nb_functions of declared functions.
  * @return A pointer to the filled symbol table.
  */
-SymTabsFct** fill_decl_functions(int nb_func, SymTabs *global_vars){
+SymTabsFct** fill_decl_functions(int nb_func, SymTabs *global_vars, char *filename){
     int nb_functions = 0;
     Node *tmp = SECONDCHILD(node)->firstChild;
     SymTabsFct** all_tables = (SymTabsFct**) try(malloc(sizeof(SymTabsFct*) * (nb_func)), NULL);
     while(tmp){
-        fill_table_fcts(all_tables, global_vars, tmp, &nb_functions);
+        fill_table_fcts(all_tables, global_vars, tmp, &nb_functions, filename);
         tmp = tmp->nextSibling;
     }
     return all_tables;
@@ -410,14 +410,50 @@ static void divstar_calc(Node *root, FILE * file, SymTabs *global_vars){
     }
 }
 
+static int addsub(Node *root){
+    if(root->ident[0] == '+')
+        return expression_result(FIRSTCHILD(root)) + expression_result(SECONDCHILD(root));
+    else
+        if(SECONDCHILD(root))
+            return expression_result(FIRSTCHILD(root)) - expression_result(SECONDCHILD(root));
+        else
+            return -expression_result(FIRSTCHILD(root));
+        
+}
+
+static int divstar(Node *root){
+    if(root->ident[0] == '*')
+        return expression_result(FIRSTCHILD(root)) * expression_result(SECONDCHILD(root));
+    else if(root->ident[0] == '/')
+        return expression_result(FIRSTCHILD(root)) / expression_result(SECONDCHILD(root));
+    else
+        return expression_result(FIRSTCHILD(root)) % expression_result(SECONDCHILD(root));
+}
+
+int expression_result(Node *root){
+    switch(root->label){
+        case Addsub:
+            return addsub(root);
+        case Divstar:
+            return divstar(root);
+        case Num:
+            return root->num;
+        case Variable:
+            return 0;
+        default:
+            exit(SEMANTIC_ERROR);
+    }
+}
+
 static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars){
     get_value(SECONDCHILD(root), file, global_vars, NULL, NULL);
-    int offset = -1, type = 0;
+    int offset = -1, type = 0, array_offset = 0;
     for(Table *current = global_vars->first; current; current = current->next){
         if(FIRSTCHILD(FIRSTCHILD(root))->label == Array){
             if(!strcmp(current->var.ident, FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)))->ident)){
                 offset = current->var.deplct;
                 type = current->var.is_int;
+                array_offset = expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root))))));
             }
         }else{
             if(!strcmp(current->var.ident, FIRSTCHILD(FIRSTCHILD(root))->ident)){
@@ -429,12 +465,12 @@ static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars){
     if(offset > -1){
         fprintf(file, "pop rax\n");
         if(type == INT)
-            fprintf(file, "mov dword [global_vars + %d], eax\n", offset);
+            fprintf(file, "mov dword [global_vars + %d + %d * 4], eax\n", offset, array_offset);
         else if(type == CHAR)
-            fprintf(file, "mov byte [global_vars + %d], al\n", offset);
+            fprintf(file, "mov byte [global_vars + %d + %d], al\n", offset, array_offset);
         else{
             fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
-            exit(SEMANTIC_ERROR);
+            //exit(SEMANTIC_ERROR);
         }
     }
     else{
@@ -461,13 +497,14 @@ static void num_calc(Node *root, FILE * file){
  * @param global_vars The symbol table for global variables.
  */
 static void ident_calc(Node *root, FILE * file, SymTabs *global_vars){
-    int offset = -1, type;
+    int offset = -1, type, array_offset = 0;
     for(Table *current = global_vars->first; current; current = current->next){
         switch(root->label){
             case Array:
                 if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
                     offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
                     type = current->var.is_int;
+                    array_offset = expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root))));
                 }
                 break;
             default:
@@ -479,16 +516,16 @@ static void ident_calc(Node *root, FILE * file, SymTabs *global_vars){
     }
     if(offset > -1){
         if(type == INT){
-            fprintf(file, "movsx rax, dword [global_vars + %d]\n", offset);
+            fprintf(file, "movsx rax, dword [global_vars + %d + %d * 4]\n", offset, array_offset);
             fprintf(file, "push rax\n");
         }
         else if (type == CHAR){
-            fprintf(file, "movsx rax, byte [global_vars + %d]\n", offset);
+            fprintf(file, "movsx rax, byte [global_vars + %d + %d]\n", offset, array_offset);
             fprintf(file, "push rax\n");
         }
         else{
             fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
-            exit(SEMANTIC_ERROR);
+            //exit(SEMANTIC_ERROR);
         }
     }
     else{
@@ -533,7 +570,6 @@ static void expression_calc(Node *root, FILE * file, SymTabs * global_vars, char
  */
 static void function_calc(Node *root, FILE * file, SymTabs * global_vars){
     fprintf(file, ";Function %s\n", FIRSTCHILD(root)->ident);
-    /*
     if(!strcmp(FIRSTCHILD(root)->ident, "getchar")){
         fprintf(file, "call _getchar\n");
         fprintf(file, "push rax\n");
@@ -542,10 +578,14 @@ static void function_calc(Node *root, FILE * file, SymTabs * global_vars){
         fprintf(file, "call _getint\n");
         fprintf(file, "push rax\n");
     }
-    else{
-        fprintf(stderr, "Error line %d: unknown function\n", root->lineno);
-        exit(SEMANTIC_ERROR);
-    }*/
+    else if(!strcmp(FIRSTCHILD(root)->ident, "putint")){
+        fprintf(file, "call _putint\n");
+        fprintf(file, "push rax\n");
+    }
+    else if(!strcmp(FIRSTCHILD(root)->ident, "putchar")){
+        fprintf(file, "call _putchar\n");
+        fprintf(file, "push rax\n");
+    }
 }
 
 static char *create_label(){
@@ -707,6 +747,12 @@ static void negative_calc(Node *root, FILE *file, SymTabs *global_vars, char *th
     free(tmp2);
 }
 
+static void return_calc(Node *root, FILE *file, SymTabs *global_vars){
+    get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL);
+    fprintf(file, "pop rax\n");
+    fprintf(file, "ret\n");
+}
+
 /**
  * @brief Gets the value of a node and writes it to a file.
  * @param root The node to get the value of.
@@ -776,6 +822,9 @@ int do_calc(Node *root, FILE * file, SymTabs *global_vars){
             if_calc(root, file, global_vars);
             printf("End If\n");
             return -1;
+        case Return:
+            return_calc(root, file, global_vars);
+            return 1;
         default:
             return 0;
     }
@@ -814,6 +863,8 @@ int expression_type(Node *root, SymTabs *global_vars, SymTabsFct **functions, in
                 type = CHAR;
             }else if(!strcmp(FIRSTCHILD(root)->ident, "getint")){
                 type = INT;
+            }else if(!strcmp(FIRSTCHILD(root)->ident, "putchar") || !strcmp(FIRSTCHILD(root)->ident, "putint")){
+                type = VOID;
             }else{
                 for(int i = 0; i < nb_functions; ++i)
                     if(!strcmp(functions[i]->ident, FIRSTCHILD(root)->ident)){
@@ -858,8 +909,8 @@ int expression_type(Node *root, SymTabs *global_vars, SymTabsFct **functions, in
  * 
  * @param t The symbols table containing the global variables.
  */
-void build_global_vars_asm(SymTabs *t){
-    FILE * file = try(fopen("_anonymous.asm", "w"), NULL);
+void build_global_vars_asm(SymTabs *t, char *filename){
+    FILE * file = try(fopen(filename, "w"), NULL);
     int size = 0;
     fprintf(file, "section .bss\n");
     for(Table *current = t->first; current; current = current->next)
@@ -873,8 +924,12 @@ void build_global_vars_asm(SymTabs *t){
  * @brief Builds minimal assembly code from a tree and writes it to a file.
  * @param root The root node of the tree.
  */
-void build_minimal_asm(Node *root, SymTabs *global_vars){
-    FILE * file = try(fopen("_anonymous.asm", "a"), NULL);
+void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename){
+    FILE * file = try(fopen(filename, "a"), NULL);
+    fprintf(file, "extern _getchar\n");
+    fprintf(file, "extern _getint\n");
+    fprintf(file, "extern _putchar\n");
+    fprintf(file, "extern _putint\n");
     fprintf(file, "global _start\n");
     fprintf(file, "section .text\n");
     fprintf(file, "_start:\n");

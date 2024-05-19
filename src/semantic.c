@@ -340,39 +340,6 @@ static void check_types(SymTabs *global_vars, SymTabsFct **functions, int nb_fun
     return;
 }
 
-static int addsub_calc(Node *root){
-    if(root->ident[0] == '+')
-        return expression_result(FIRSTCHILD(root)) + expression_result(SECONDCHILD(root));
-    else
-        if(SECONDCHILD(root))
-            return expression_result(FIRSTCHILD(root)) - expression_result(SECONDCHILD(root));
-        else
-            return -expression_result(FIRSTCHILD(root));
-        
-}
-
-static int divstar_calc(Node *root){
-    if(root->ident[0] == '*')
-        return expression_result(FIRSTCHILD(root)) * expression_result(SECONDCHILD(root));
-    else if(root->ident[0] == '/')
-        return expression_result(FIRSTCHILD(root)) / expression_result(SECONDCHILD(root));
-    else
-        return expression_result(FIRSTCHILD(root)) % expression_result(SECONDCHILD(root));
-}
-
-int expression_result(Node *root){
-    switch(root->label){
-        case Addsub:
-            return addsub_calc(root);
-        case Divstar:
-            return divstar_calc(root);
-        case Num:
-            return root->num;
-        default:
-            exit(SEMANTIC_ERROR);
-    }
-}
-
 static int is_array(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(root){
         switch(root->label){
@@ -420,14 +387,17 @@ static void check_arith_array(Node * current, SymTabs *global_vars, SymTabsFct *
         switch(current->label){
             case Or:
             case And:
+            case Order:
+            case Eq:
             case Equals:
             case Addsub:
+            case Not:
             case Divstar:
                 if(is_array(FIRSTCHILD(current), global_vars, functions, nb_functions, function_name)){
                     fprintf(stderr, "Error at line %d: can't acces to the array\n",  FIRSTCHILD(current)->lineno);
                     exit(SEMANTIC_ERROR);
                 }
-                if(is_array(SECONDCHILD(current), global_vars, functions, nb_functions, function_name)){
+                if(SECONDCHILD(current) && is_array(SECONDCHILD(current), global_vars, functions, nb_functions, function_name)){
                     fprintf(stderr, "Error at line %d: can't acces to the array\n", SECONDCHILD(current)->lineno);
                     exit(SEMANTIC_ERROR);
                 }
@@ -454,6 +424,46 @@ static void check_arith_array(Node * current, SymTabs *global_vars, SymTabsFct *
     }
 }
 
+static void check_valid_decl_array(Node *root){
+    if(root){
+        if(root->label == Type){
+            Node *current = FIRSTCHILD(root);
+            while(current){
+                if(current->label == Array){
+                    if(FIRSTCHILD(FIRSTCHILD(current))->num <= 0){
+                        fprintf(stderr, "Error at line %d: array (%s) size must be greater than 0\n", FIRSTCHILD(FIRSTCHILD(current))->lineno, FIRSTCHILD(current)->ident);
+                        exit(SEMANTIC_ERROR);
+                    }
+                }
+                current = current->nextSibling;
+            }
+        }
+        check_valid_decl_array(root->nextSibling);
+    }
+}
+
+static void check_index(Node *root){
+    if(root){
+        if(root->label == Array){
+            if(expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)))) < 0){
+                fprintf(stderr, "Error at line %d: index acces of an array can't be negative\n", FIRSTCHILD(FIRSTCHILD(root))->lineno);
+                exit(SEMANTIC_ERROR);
+            }
+        }
+        check_index(FIRSTCHILD(root));
+        check_index(root->nextSibling);
+    }
+}
+
+static void check_valid_array_acces(Node *root){
+    if(root){
+        if(root->label == Instructions){
+            check_index(FIRSTCHILD(root));
+        }
+        check_valid_array_acces(root->nextSibling);
+    }
+}
+
 static void check_arrays(SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
     Node *globals = FIRSTCHILD(FIRSTCHILD(node));
     Node *functs = FIRSTCHILD(SECONDCHILD(node));
@@ -472,6 +482,8 @@ static void check_arrays(SymTabs *global_vars, SymTabsFct **functions, int nb_fu
     }
     while(functs){
         check_arith_array(functs, global_vars, functions, nb_functions, SECONDCHILD(functs)->ident);
+        check_valid_decl_array(FIRSTCHILD(FOURTHCHILD(functs)));
+        //check_valid_array_acces(FIRSTCHILD(FOURTHCHILD(functs)));
         functs = functs->nextSibling;
     }
 }

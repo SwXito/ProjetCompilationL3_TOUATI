@@ -19,10 +19,10 @@ obj:
 	mkdir -p obj
 
 
-$(BIN)/$(EXEC): $(OBJ)/tree.o $(OBJ)/$(EXEC).o $(OBJ)/$(EXEC).yy.o $(OBJ)/compile.o $(OBJ)/parse.o $(OBJ)/build.o $(OBJ)/semantic.o $(OBJ)/main.o | bin
+$(BIN)/$(EXEC): $(OBJ)/tree.o $(OBJ)/$(EXEC).o $(OBJ)/$(EXEC).yy.o $(OBJ)/compile.o $(OBJ)/parse.o $(OBJ)/semantic.o $(OBJ)/main.o | bin
 	$(CC) -o $@ $^ $(LDFLAGS)
 
-$(OBJ)/main.o: $(SRC)/main.c $(SRC)/build.h $(SRC)/compile.h | obj
+$(OBJ)/main.o: $(SRC)/main.c $(SRC)/compile.h | obj
 	$(CC) -o $@ -c $< $(CFLAGS)
 
 $(OBJ)/$(EXEC).o: $(OBJ)/$(EXEC).c $(OBJ)/$(EXEC).h $(OBJ)/$(EXEC).tab.h | obj
@@ -40,10 +40,10 @@ $(OBJ)/$(EXEC).yy.c: $(SRC)/$(EXEC).lex | obj
 $(OBJ)/tree.o: $(SRC)/tree.c $(SRC)/tree.h | obj
 	$(CC) -o $@ -c $< $(CFLAGS)
 
-$(BIN)/$(ANONYMOUS): $(OBJ)/_anonymous.o $(OBJ)/utils.o
+$(BIN)/$(ANONYMOUS): $(OBJ)/getchar.o $(OBJ)/putchar.o $(OBJ)/putint.o $(OBJ)/getint.o $(OBJ)/_anonymous.o $(OBJ)/utils.o
 	gcc -o $@ $^ -nostartfiles -no-pie
 
-$(OBJ)/utils.o: utils.asm | obj
+$(OBJ)/%.o: %.asm | obj
 	$(ASM) -f elf64 -o $@ $<
 
 $(OBJ)/_anonymous.o: _anonymous.asm | obj
