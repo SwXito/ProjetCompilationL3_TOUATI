@@ -7,4 +7,6 @@ void check_affectations(Node *root, SymTabs* global_vars, SymTabsFct **functions
 
 void semantic_check(SymTabs *global_vars, SymTabsFct **functions, int nb_functions); ///< Function to perform semantic checks on the tree.
 
+int get_function_type(Node *root); ///< Function to get the type of a function.
+
 #endif

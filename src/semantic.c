@@ -214,12 +214,29 @@ static void check_idents(SymTabs *global_vars, SymTabsFct **functions, int nb_fu
     }
 }
 
+static int decl_function_type(Node *root){
+    if(!strcmp(FIRSTCHILD(root)->ident, "int"))
+        return INT;
+    if(!strcmp(FIRSTCHILD(root)->ident, "char"))
+        return CHAR;
+    if(!strcmp(FIRSTCHILD(root)->ident, "void"))
+        return VOID;
+    if(!strcmp(SECONDCHILD(root)->ident, "putchar") || !strcmp(SECONDCHILD(root)->ident, "getchar"))
+        return VOID;
+    if(!strcmp(SECONDCHILD(root)->ident, "getint"))
+        return INT;
+    if(!strcmp(SECONDCHILD(root)->ident, "getchar"))
+        return CHAR;
+    fprintf(stderr, "Error at line %d: unknown type\n", root->lineno);
+    exit(SEMANTIC_ERROR);
+}
+
 static void check_existing_main(Node *root){
     int exist = 0;
     while(root){
         if(root->label == Function && !strcmp(SECONDCHILD(root)->ident, "main")){
             exist = 1;
-            if(get_function_type(root) != INT){
+            if(decl_function_type(root) != INT){
                 fprintf(stderr, "Error at line %d: main function must return an int\n", SECONDCHILD(root)->lineno);
                 exit(SEMANTIC_ERROR);
             }
@@ -313,7 +330,7 @@ static void check_functions(SymTabs *global_vars, SymTabsFct **functions, int nb
     while(current){
         if(current->label == Function){
             Node *corps = FOURTHCHILD(current);
-            function_type = get_function_type(current);
+            function_type = decl_function_type(current);
             if(find_label_return(corps))
                 check_return_type(FIRSTCHILD(FOURTHCHILD(current)), function_type, global_vars, functions, nb_fcts, SECONDCHILD(current)->ident);
             else if(function_type != VOID){

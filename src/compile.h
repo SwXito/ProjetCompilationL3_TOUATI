@@ -100,19 +100,18 @@ void fill_global_vars(SymTabs* t); ///< Function to fill the table with global v
 
 SymTabsFct** fill_decl_functions(int nb_func, SymTabs *global_vars, char *filename); ///< Function to fill the table with declared functions.
 
-void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymTabs *), void (*table)(SymTabs *, Node *), void (*check)(Node *), SymTabs *t, FILE * file); ///< Function to traverse the tree in depth.
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymTabs *, SymTabsFct **, int),
+ void (*table)(SymTabs *, Node *), void (*check)(Node *), SymTabs *t, FILE * file, SymTabsFct **functions, int nb_functions); ///< Function to traverse the tree in depth.
 
 void in_width_course(Node * root, void (*func)(SymTabs **, SymTabs *, Node *, int *), SymTabs **t, SymTabs *global_vars, int *nb_functions); ///< Function to traverse the tree in width.
 
 void free_table(Table *t); ///< Function to free the memory allocated for the table.
 
-void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label, char *else_label); ///< Function to get the value of a node.
+void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions); ///< Function to get the value of a node.
 
-int do_calc(Node *root, FILE * file, SymTabs *global_vars); ///< Function to perform calculations on the tree nodes.
+int do_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions); ///< Function to perform calculations on the tree nodes.
 
 int expression_type(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name); ///< Function to get the type of an expression.
-
-int get_function_type(Node *root); ///< Function to get the type of a function.
 
 void free_symbols_table(SymTabs *t); ///< Function to free the memory allocated for the symbol table.
 
@@ -128,9 +127,13 @@ void print_global_vars(SymTabs *t); ///< Function to print the global variables.
 
 void print_functions(SymTabsFct **t, int nb_functions); ///< Function to print the declared functions.
 
-void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename); ///< Function to build minimal assembly code from the tree.
+void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabsFct **functions, int nb_functions); ///< Function to build minimal assembly code from the tree.
+
+int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_name); ///< Function to get the number of parameters of a function.
 
 int expression_result(Node *root); ///< Function to get the result of an expression.
+
+void build_asm(SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *filename); ///< Function to build assembly code from the tree.
 
 void build_global_vars_asm(SymTabs *t, char *filename); ///< Function to build assembly code for global variables.
 
