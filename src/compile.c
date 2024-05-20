@@ -205,7 +205,7 @@ static void fill_param_fcts(Node *root, SymTabsFct *t){
             Node *current = FIRSTCHILD(tmp);
             while(current){
                 if(current->label == Array)
-                    add_to_param_fct(t, FIRSTCHILD(current), tmp->ident, 1, 0); //change size
+                    add_to_param_fct(t, FIRSTCHILD(current), tmp->ident, 1, 1); //change size
                 else
                     add_to_param_fct(t, current, tmp->ident, 0, 0);
                 current = current->nextSibling;
@@ -227,7 +227,7 @@ void fill_vars_fcts(Node *root, SymTabsFct* t){
             Node *current = FIRSTCHILD(tmp);
             while(current){
                 if(current->label == Array)
-                    add_to_vars_fct(t, FIRSTCHILD(current), tmp->ident, 1, 0); //change size
+                    add_to_vars_fct(t, FIRSTCHILD(current), tmp->ident, 1, expression_result(FIRSTCHILD(FIRSTCHILD(current))));
                 else
                     add_to_vars_fct(t, current, tmp->ident, 0, 0);
                 current = current->nextSibling;
@@ -538,10 +538,6 @@ static void ident_calc(Node *root, FILE * file, SymTabs *global_vars){
             //exit(SEMANTIC_ERROR);
         }
     }
-    else{
-        fprintf(stderr, "Not a global var\n");
-        //exit(SEMANTIC_ERROR);
-    }
 }
 
 
@@ -602,9 +598,6 @@ static void change_offset(SymTabsFct *function){
         current->var.deplct = offset;
         offset += current->var.is_int ? (current->var.is_array ? current->var.size * 4 : 4) : (current->var.is_array ? current->var.size : 1);
     }
-    printf("Function %s\n", function->ident);
-    print_table(function->parameters);
-    print_table(function->variables);
 }
 
 /**
@@ -926,6 +919,9 @@ int do_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **function
             return 1;
         case Function:
             if(FIRSTCHILD(root)->label == Type || FIRSTCHILD(root)->label == Void){
+                for(int i = 0; i < nb_functions; ++i)
+                    if(!strcmp(SECONDCHILD(root)->ident, functions[i]->ident))
+                        change_offset(functions[i]);
                 fprintf(file, "%s:\n", SECONDCHILD(root)->ident);
                 return 0;
             }
