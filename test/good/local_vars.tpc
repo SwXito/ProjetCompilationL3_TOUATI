@@ -3,7 +3,7 @@ int i;
 int main(int argc, char argv){
     int tab[2];
     test();
-    i = 2;
+    i = 0;
     test22(tab);
     return 0;
 }

@@ -455,40 +455,6 @@ int expression_result(Node *root){
     }
 }
 
-static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
-    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
-    int offset = -1, type = 0, array_offset = 0;
-    for(Table *current = global_vars->first; current; current = current->next){
-        if(FIRSTCHILD(FIRSTCHILD(root))->label == Array){
-            if(!strcmp(current->var.ident, FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)))->ident)){
-                offset = current->var.deplct;
-                type = current->var.is_int;
-                array_offset = expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root))))));
-            }
-        }else{
-            if(!strcmp(current->var.ident, FIRSTCHILD(FIRSTCHILD(root))->ident)){
-                offset = current->var.deplct;
-                type = current->var.is_int;
-            }
-        }
-    }
-    if(offset > -1){
-        fprintf(file, "pop rax\n");
-        if(type == INT)
-            fprintf(file, "mov dword [global_vars + %d + %d * 4], eax\n", offset, array_offset);
-        else if(type == CHAR)
-            fprintf(file, "mov byte [global_vars + %d + %d], al\n", offset, array_offset);
-        else{
-            fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
-            //exit(SEMANTIC_ERROR);
-        }
-    }
-    else{
-        printf("not a global vars, in equals calc\n");
-    }
-
-}
-
 /**
  * @brief Writes the value of a node to a file as an assembly instruction.
  * @param root The node whose value is to be written.
@@ -500,6 +466,54 @@ static void num_calc(Node *root, FILE * file){
     fprintf(file, "push rax\n");
 }
 
+static int get_offset_global_vars(Node *root, SymTabs *global_vars, int *type){
+    int offset = -1, size = 0, array_offset = 0;
+    for(Table *current = global_vars->first; current; current = current->next){
+        switch(root->label){
+            case Array:
+                if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
+                    offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
+                    size = current->var.is_int ? 4 : 1;
+                    *type = current->var.is_int;
+                    array_offset = expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root))));
+                }
+                break;
+            default:
+                if(!strcmp(current->var.ident, root->ident)){
+                    offset = current->var.deplct;
+                    *type = current->var.is_int;
+                    size = current->var.is_int ? 4 : 1;
+                }
+        }
+    }
+    return offset + size * array_offset;
+}
+
+static int get_offset_functions(Node *root, SymTabsFct **functions, int nb_functions, char *function_name, int *type){
+    int offset = -1;
+    for(int i = 0; i < nb_functions; ++i){
+        if(!strcmp(functions[i]->ident, root->ident)){
+            offset = functions[i]->type;
+            *type = functions[i]->type;
+        }
+    }
+    return offset;
+}
+
+static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
+    int offset = -1, type = 0;
+    offset = get_offset_global_vars(FIRSTCHILD(FIRSTCHILD(root)), global_vars, &type);
+    if(offset > -1){
+        fprintf(file, "pop rax\n");
+        fprintf(file, "mov %s [global_vars + %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
+    }
+    else{
+        printf("not a global vars, in equals calc\n");
+    }
+
+}
+
 /**
  * @brief Writes the value of an identifier to a file as an assembly instruction.
  * @param root The node whose value is to be written.
@@ -507,36 +521,11 @@ static void num_calc(Node *root, FILE * file){
  * @param global_vars The symbol table for global variables.
  */
 static void ident_calc(Node *root, FILE * file, SymTabs *global_vars){
-    int offset = -1, type, array_offset = 0;
-    for(Table *current = global_vars->first; current; current = current->next){
-        switch(root->label){
-            case Array:
-                if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
-                    offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
-                    type = current->var.is_int;
-                    array_offset = expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root))));
-                }
-                break;
-            default:
-                if(!strcmp(current->var.ident, root->ident)){
-                    offset = current->var.deplct;
-                    type = current->var.is_int;
-                }
-        }
-    }
+    int offset = -1, type;
+    offset = get_offset_global_vars(root, global_vars, &type);
     if(offset > -1){
-        if(type == INT){
-            fprintf(file, "movsx rax, dword [global_vars + %d + %d * 4]\n", offset, array_offset);
-            fprintf(file, "push rax\n");
-        }
-        else if (type == CHAR){
-            fprintf(file, "movsx rax, byte [global_vars + %d + %d]\n", offset, array_offset);
-            fprintf(file, "push rax\n");
-        }
-        else{
-            fprintf(stderr, "Error line %d: unknown type\n", root->lineno);
-            //exit(SEMANTIC_ERROR);
-        }
+        fprintf(file, "movsx rax, %s [global_vars + %d]\n", type == INT ? "dword" : "byte", offset);
+        fprintf(file, "push rax\n");
     }
 }
 

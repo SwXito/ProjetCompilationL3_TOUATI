@@ -4,6 +4,7 @@ char array[1];
 
 int main(void){
     res = fibonnaci(4);
+    taille[2] = 0;
     putint(res);
     return res;
 }
