@@ -1,19 +1,12 @@
-int i;
-
 int main(int argc, char argv){
     int tab[2];
-    test();
-    i = 0;
+    tab[0] = 22;
+    putint(tab[0]);
     test22(tab);
     return 0;
 }
 
-void test(void){
-    i = i + 1;
-}
-
 void test22(int tab[]){
-    int x[2], y;
-    char s[10];
+    putint(tab[0]);
     return;
 }

@@ -264,7 +264,7 @@ void fill_table_fcts(SymTabsFct **t, SymTabs *global_vars, Node *root, int *nb_f
  */
 SymTabs* fill_func_parameters_table(Node *root){
     SymTabs* res = creatSymbolsTable();
-    in_depth_course(SECONDCHILD(root)->nextSibling->firstChild, NULL, fill_table_vars, NULL, res, NULL, NULL, 0);
+    in_depth_course(SECONDCHILD(root)->nextSibling->firstChild, NULL, fill_table_vars, NULL, res, NULL, NULL, 0, NULL);
     return res;
 }
 
@@ -299,10 +299,8 @@ SymTabsFct** fill_decl_functions(int nb_func, SymTabs *global_vars, char *filena
  */
 void fill_global_vars(SymTabs* t){
     if(FIRSTCHILD(node))
-        in_depth_course(FIRSTCHILD(node)->firstChild, NULL, fill_table_vars, NULL,  t, NULL, NULL, 0);
+        in_depth_course(FIRSTCHILD(node)->firstChild, NULL, fill_table_vars, NULL,  t, NULL, NULL, 0, NULL);
 }
-
-
 
 /**
  * @brief Traverses a tree in depth.
@@ -313,20 +311,22 @@ void fill_global_vars(SymTabs* t){
  * @param t The symbol table to fill.
  * @param file The file to write to.
  */
-void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymTabs *, SymTabsFct **, int),
- void (*table)(SymTabs *, Node *), void (*check)(Node *), SymTabs *t, FILE * file, SymTabsFct **functions, int nb_functions){
+void in_depth_course(Node * root, int (*calc)(Node *, FILE *, SymTabs *, SymTabsFct **, int, char *),
+ void (*table)(SymTabs *, Node *), void (*check)(Node *), SymTabs *t, FILE * file, SymTabsFct **functions, int nb_functions, char *function_name){
     if(root) {
+        if(root->label == Function && (FIRSTCHILD(root)->label == Type || FIRSTCHILD(root)->label == Void))
+            function_name = SECONDCHILD(root)->ident;
         int skip = 0;
         if (calc)
-            if((skip = calc(root, file, t, functions, nb_functions)) == 1)
+            if((skip = calc(root, file, t, functions, nb_functions, function_name)) == 1)
                 return;
         if (table)
             table(t, root);
         if(check)
             check(root);
         if(skip != -1)
-            in_depth_course(FIRSTCHILD(root), calc, table, check, t, file, functions, nb_functions);
-        in_depth_course(root->nextSibling, calc, table, check, t, file, functions, nb_functions);
+            in_depth_course(FIRSTCHILD(root), calc, table, check, t, file, functions, nb_functions, function_name);
+        in_depth_course(root->nextSibling, calc, table, check, t, file, functions, nb_functions, function_name);
     }
 }
 
@@ -374,14 +374,14 @@ static void calc_one_child(FILE *file){
  * @param file The file to write the assembly instructions to.
  * @return The result of the addition or subtraction operation.
  */
-static void addsub_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+static void addsub_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(SECONDCHILD(root)){
-        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
-        get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
+        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
+        get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
     }
     else{
         calc_one_child(file);
-        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
+        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
     }
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '+'){
@@ -400,9 +400,9 @@ static void addsub_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFc
  * @param file The file to write the assembly instructions to.
  * @return The result of the multiplication or division operation.
  */
-static void divstar_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
-    get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
-    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
+static void divstar_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
+    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
     calc_to_asm(file); // Write the assembly instructions for the calculation to the file.
     if(root->ident[0] == '*'){
         fprintf(file, "imul rax, rcx\n");
@@ -489,19 +489,50 @@ static int get_offset_global_vars(Node *root, SymTabs *global_vars, int *type){
     return offset + size * array_offset;
 }
 
-static int get_offset_functions(Node *root, SymTabsFct **functions, int nb_functions, char *function_name, int *type){
-    int offset = -1;
-    for(int i = 0; i < nb_functions; ++i){
-        if(!strcmp(functions[i]->ident, root->ident)){
-            offset = functions[i]->type;
-            *type = functions[i]->type;
+static int get_offset_table(Node *root, Table *table, int *type, int *is_adress){
+    int offset = -1, size = 0, array_offset = 0;
+    for(Table *current = table; current; current = current->next){
+        switch(root->label){
+            case Array:
+                if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
+                    offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
+                    size = current->var.is_int ? 4 : 1;
+                    *type = current->var.is_int;
+                    array_offset = expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root))));
+                }
+                break;
+            default:
+                if(!strcmp(current->var.ident, root->ident)){
+                    offset = current->var.deplct;
+                    *type = current->var.is_int;
+                    size = current->var.is_int ? 4 : 1;
+                    *is_adress = !FIRSTCHILD(root) && current->var.is_array ? 1 : 0;
+                }
         }
     }
+    return offset + size * array_offset;
+}
+
+static int get_offset_functions(Node *root, SymTabsFct **functions, int nb_functions, char *function_name, int *type, int *is_adress){
+    int offset = -1;
+    for(int i = 0; i < nb_functions; ++i)
+        if(function_name && !strcmp(functions[i]->ident, function_name))
+            return get_offset_table(root, functions[i]->variables, type, is_adress);
     return offset;
 }
 
-static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
-    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
+static int get_arg_nb(Table *table, char *ident, SymTabsFct **functions, int nb_functions, char *function_name){
+    int nb = nb_params_function(functions, nb_functions, function_name);
+    for(Table *current = table; current; current = current->next){
+        if(!strcmp(current->var.ident, ident))
+            return nb;
+        nb--;
+    }
+    return nb;
+}
+
+static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
     int offset = -1, type = 0;
     offset = get_offset_global_vars(FIRSTCHILD(FIRSTCHILD(root)), global_vars, &type);
     if(offset > -1){
@@ -509,9 +540,51 @@ static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymT
         fprintf(file, "mov %s [global_vars + %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
     }
     else{
-        printf("not a global vars, in equals calc\n");
+        int is_adress = 0;
+        offset = get_offset_functions(FIRSTCHILD(FIRSTCHILD(root)), functions, nb_functions, function_name, &type, &is_adress);
+        if(offset > -1){
+            fprintf(file, "pop rax\n");
+            fprintf(file, "mov %s [rbp - %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
+        }
+        else{
+            fprintf(stderr, "Error: variable %s not found\n", FIRSTCHILD(FIRSTCHILD(root))->ident);
+            exit(SEMANTIC_ERROR);
+        }
     }
+}
 
+static int use_funct_params(Node *root, FILE * file, SymTabsFct **functions, int nb_functions, char *function_name){
+    for(int i = 0; i < nb_functions; ++i)
+        if(!strcmp(function_name, functions[i]->ident))
+            switch(get_arg_nb(functions[i]->parameters, root->ident, functions, nb_functions, function_name)){
+                case 1:
+                    fprintf(file, "mov rax, [rsp]\n");
+                    fprintf(file, "push rax\n");
+                    return 1;
+                case 2:
+                    fprintf(file, "mov rax, [rsp + 8]\n");
+                    fprintf(file, "push rax\n");
+                    return 1;
+                case 3:
+                    fprintf(file, "mov rax, [rsp + 16]\n");
+                    fprintf(file, "push rax\n");
+                    return 1;
+                case 4: 
+                    fprintf(file, "mov rax, [rsp + 24]\n");
+                    fprintf(file, "push rax\n");
+                    return 1;
+                case 5:
+                    fprintf(file, "mov rax, [rsp + 32]\n");
+                    fprintf(file, "push rax\n");
+                    return 1;
+                case 6:
+                    fprintf(file, "mov rax, [rsp + 40]\n");
+                    fprintf(file, "push rax\n");
+                    return 1;
+                default:
+                    return 0;
+            }
+    return 0;
 }
 
 /**
@@ -520,12 +593,27 @@ static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymT
  * @param file The file to write the assembly instruction to.
  * @param global_vars The symbol table for global variables.
  */
-static void ident_calc(Node *root, FILE * file, SymTabs *global_vars){
+static void ident_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     int offset = -1, type;
     offset = get_offset_global_vars(root, global_vars, &type);
     if(offset > -1){
         fprintf(file, "movsx rax, %s [global_vars + %d]\n", type == INT ? "dword" : "byte", offset);
         fprintf(file, "push rax\n");
+    }
+    else{
+        if(use_funct_params(root, file, functions, nb_functions, function_name))
+            return;
+        int is_adress = 0;
+        offset = get_offset_functions(root, functions, nb_functions, function_name, &type, &is_adress);
+        if(offset > -1){
+            if(is_adress){
+                fprintf(file, "lea rax, [rbp - %d]\n", offset);
+            }
+            else{
+                fprintf(file, "movsx rax, %s [rbp - %d]\n", type == INT ? "dword" : "byte", offset);
+            }
+            fprintf(file, "push rax\n");
+        }
     }
 }
 
@@ -581,11 +669,11 @@ static void change_offset(SymTabsFct *function){
     int offset = 0;
     for(Table *current = function->parameters; current; current = current->next){
         current->var.deplct = offset;
-        offset += current->var.is_int ? 4 : 1;
+        offset += 8;
     }
     for(Table *current = function->variables; current; current = current->next){
         current->var.deplct = offset;
-        offset += current->var.is_int ? (current->var.is_array ? current->var.size * 4 : 4) : (current->var.is_array ? current->var.size : 1);
+        offset += 8;
     }
 }
 
@@ -595,11 +683,11 @@ static void change_offset(SymTabsFct *function){
  * @param file The file to write to.
  * @param global_vars The symbol table for global variables.
  */
-static void function_calc(Node *root, FILE * file, SymTabs * global_vars, SymTabsFct **functions, int nb_functions){
+static void function_calc(Node *root, FILE * file, SymTabs * global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     int args = get_params(root);
     Node *params = FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)));
     while(params && params->label != Void){
-        get_value(params, file, global_vars, NULL, NULL, functions, nb_functions);
+        get_value(params, file, global_vars, NULL, NULL, functions, nb_functions, function_name);
         params = params->nextSibling;
     }
     fprintf(file, ";Function %s\n", FIRSTCHILD(root)->ident);
@@ -607,18 +695,18 @@ static void function_calc(Node *root, FILE * file, SymTabs * global_vars, SymTab
     fprintf(file, "sub rsp, 8\n");
     fprintf(file, "and rsp, -16\n");
     fprintf(file, "mov qword [rsp], r11\n");*/
-    if(args >= 1)
-        fprintf(file, "pop rdi\n");
-    if(args >= 2)
-        fprintf(file, "pop rsi\n");
-    if(args >= 3)
-        fprintf(file, "pop rdx\n");
-    if(args >= 4)
-        fprintf(file, "pop rcx\n");
-    if(args >= 5)
-        fprintf(file, "pop r8\n");
     if(args >= 6)
         fprintf(file, "pop r9\n");
+    if(args >= 5)
+        fprintf(file, "pop r8\n");
+    if(args >= 4)
+        fprintf(file, "pop rcx\n");
+    if(args >= 3)
+        fprintf(file, "pop rdx\n");
+    if(args >= 2)
+        fprintf(file, "pop rsi\n");
+    if(args >= 1)
+        fprintf(file, "pop rdi\n");
     if(!strcmp(FIRSTCHILD(root)->ident, "getchar"))
         fprintf(file, "call _getchar\n");
     else if(!strcmp(FIRSTCHILD(root)->ident, "getint"))
@@ -641,7 +729,8 @@ static char *create_label(){
     return res;
 }
 
-static void manage_if_then_else(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, char *end_label, SymTabsFct **functions, int nb_functions){
+static void manage_if_then_else(Node *root, FILE *file, SymTabs *global_vars, char *then_label,
+ char *else_label, char *end_label, SymTabsFct **functions, int nb_functions, char *function_name){
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, 0\n");
     fprintf(file, "je %s\n", else_label);
@@ -649,10 +738,10 @@ static void manage_if_then_else(Node *root, FILE *file, SymTabs *global_vars, ch
     fprintf(file, "%s:\n", then_label);
     switch(SECONDCHILD(root)->label){
         case Instructions:
-            do_calc(FIRSTCHILD(SECONDCHILD(root)), file, global_vars, functions, nb_functions);
+            do_calc(FIRSTCHILD(SECONDCHILD(root)), file, global_vars, functions, nb_functions, function_name);
             break;
         default:
-            do_calc(SECONDCHILD(root), file, global_vars, functions, nb_functions);
+            do_calc(SECONDCHILD(root), file, global_vars, functions, nb_functions, function_name);
             break;
     }
     fprintf(file, "jmp %s\n", end_label);
@@ -661,22 +750,22 @@ static void manage_if_then_else(Node *root, FILE *file, SymTabs *global_vars, ch
     if(THIRDCHILD(root)){
         switch (THIRDCHILD(root)->label){
             case Instructions:
-                do_calc(FIRSTCHILD(THIRDCHILD(root)), file, global_vars, functions, nb_functions);
+                do_calc(FIRSTCHILD(THIRDCHILD(root)), file, global_vars, functions, nb_functions, function_name);
                 break;
             default:
-                do_calc(THIRDCHILD(root), file, global_vars, functions, nb_functions);
+                do_calc(THIRDCHILD(root), file, global_vars, functions, nb_functions, function_name);
                 break;
         }
     }
 }
 
-static void manage_while(Node *root, FILE *file, SymTabs *global_vars, char *begin_label, char *end_label, SymTabsFct **functions, int nb_functions){
+static void manage_while(Node *root, FILE *file, SymTabs *global_vars, char *begin_label, char *end_label, SymTabsFct **functions, int nb_functions, char *function_name){
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, 0\n");
     fprintf(file, "je %s\n", end_label);
     Node *current = FIRSTCHILD(SECONDCHILD(root));
     while(current){
-        do_calc(current, file, global_vars, functions, nb_functions);
+        do_calc(current, file, global_vars, functions, nb_functions, function_name);
         current = current->nextSibling;
     }
     fprintf(file, "jmp %s\n", begin_label);
@@ -689,34 +778,34 @@ static void manage_while(Node *root, FILE *file, SymTabs *global_vars, char *beg
  * @param file The file to write to.
  * @param global_vars The symbol table for global variables.
  */
-static void if_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+static void if_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     char *then_label = create_label();
     char *else_label = create_label();
     char *end_label = create_label();
     fprintf(file, ";If\n");
-    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
-    manage_if_then_else(root, file, global_vars, then_label, else_label, end_label, functions, nb_functions);
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
+    manage_if_then_else(root, file, global_vars, then_label, else_label, end_label, functions, nb_functions, function_name);
     fprintf(file, "%s:\n", end_label);
     free(then_label);
     free(else_label);
 }
 
-static void while_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+static void while_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     char *begin_label = create_label();
     char *end_label = create_label();
     fprintf(file, ";While\n");
     fprintf(file, "%s:\n", begin_label);
-    get_value(FIRSTCHILD(root), file, global_vars, begin_label, end_label, functions, nb_functions);
-    manage_while(root, file, global_vars, begin_label, end_label, functions, nb_functions);
+    get_value(FIRSTCHILD(root), file, global_vars, begin_label, end_label, functions, nb_functions, function_name);
+    manage_while(root, file, global_vars, begin_label, end_label, functions, nb_functions, function_name);
     free(begin_label);
     free(end_label);
 }
 
-static void eq_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions){
+static void eq_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions, char *function_name){
     char * tmp1 = create_label();
     char * tmp2 = create_label();
-    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
-    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
+    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
     fprintf(file, "pop rcx\n");
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, rcx\n");
@@ -734,11 +823,11 @@ static void eq_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_lab
     free(tmp2);
 }
 
-static void or_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions){
+static void or_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions, char *function_name){
     char * tmp1 = create_label();
     char * tmp2 = create_label();
-    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
-    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
+    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, 0\n");
     fprintf(file, "jne %s\n", tmp1);
@@ -755,11 +844,11 @@ static void or_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_lab
     free(tmp2);
 }
 
-static void and_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions){
+static void and_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions, char *function_name){
     char * tmp1 = create_label();
     char * tmp2 = create_label();
-    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
-    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
+    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, 0\n");
     fprintf(file, "je %s\n", tmp1);
@@ -776,9 +865,9 @@ static void and_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_la
     free(tmp2);
 }
 
-static void order_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions){
-    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
-    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
+static void order_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions, char *function_name){
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
+    get_value(SECONDCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
     char * tmp1 = create_label();
     char * tmp2 = create_label();
     fprintf(file, "pop rcx\n");
@@ -802,8 +891,8 @@ static void order_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_
     free(tmp2);
 }
 
-static void negative_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions){
-    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
+static void negative_calc(Node *root, FILE *file, SymTabs *global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions, char *function_name){
+    get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
     char * tmp1 = create_label();
     char * tmp2 = create_label();
     fprintf(file, "pop rax\n");
@@ -819,9 +908,9 @@ static void negative_calc(Node *root, FILE *file, SymTabs *global_vars, char *th
     free(tmp2);
 }
 
-static void return_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+static void return_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(FIRSTCHILD(root)->label != Void){
-        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
+        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
         fprintf(file, "pop rax\n");
     }
 }
@@ -832,10 +921,11 @@ static void return_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct
  * @param file The file to write to.
  * @param global_vars The symbol table for global variables.
  */
-void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions){
+void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label,
+ char *else_label, SymTabsFct **functions, int nb_functions, char *function_name){
     switch(root->label){
         case Variable:
-            ident_calc(FIRSTCHILD(root), file, global_vars);
+            ident_calc(FIRSTCHILD(root), file, global_vars, functions, nb_functions, function_name);
             break;
         case Num:
             num_calc(root, file);
@@ -844,29 +934,29 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
             character_calc(root, file);
             break;
         case Expression:
-            get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
+            get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions, function_name);
             break;
         case Function:
-            function_calc(root, file, global_vars, functions, nb_functions);
+            function_calc(root, file, global_vars, functions, nb_functions, function_name);
             break;
         case Eq:
-            eq_calc(root, file, global_vars, then_label, else_label, functions, nb_functions);
+            eq_calc(root, file, global_vars, then_label, else_label, functions, nb_functions, function_name);
             break;
         case Or:
-            or_calc(root, file, global_vars, then_label, else_label, functions, nb_functions);
+            or_calc(root, file, global_vars, then_label, else_label, functions, nb_functions, function_name);
             break;
         case And:
-            and_calc(root, file, global_vars, then_label, else_label, functions, nb_functions);
+            and_calc(root, file, global_vars, then_label, else_label, functions, nb_functions, function_name);
             break;
         case Order:
-            order_calc(root, file, global_vars, then_label, else_label, functions, nb_functions);
+            order_calc(root, file, global_vars, then_label, else_label, functions, nb_functions, function_name);
             break;
         case Not:
-            negative_calc(root, file, global_vars, then_label, else_label, functions, nb_functions);
+            negative_calc(root, file, global_vars, then_label, else_label, functions, nb_functions, function_name);
             break;
         case Addsub:
         case Divstar:
-            do_calc(root, file, global_vars, functions, nb_functions);
+            do_calc(root, file, global_vars, functions, nb_functions, function_name);
             break;
         default:
             printf("Here\n");
@@ -876,6 +966,38 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
     }
 }
 
+static void enter_func_calc(Node *root, FILE *file, SymTabsFct **functions, int nb_functions, char *function_name){
+    function_name = SECONDCHILD(root)->ident;
+    fprintf(file, "%s:\n", function_name);
+    for(int i = 0; i < nb_functions; ++i)
+        if(!strcmp(function_name, functions[i]->ident))
+            change_offset(functions[i]);
+    switch(nb_params_function(functions, nb_functions, function_name)){
+        case 6:
+            fprintf(file, "push r9\n");
+        case 5:
+            fprintf(file, "push r8\n");
+        case 4:
+            fprintf(file, "push rcx\n");
+        case 3:
+            fprintf(file, "push rdx\n");
+        case 2:
+            fprintf(file, "push rsi\n");
+        case 1:
+            fprintf(file, "push rdi\n");
+            break;
+        default:
+            break;
+    }
+}
+
+static void corps_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, global_vars, file, functions, nb_functions, function_name);
+    for(int i = 0; i < nb_params_function(functions, nb_functions, function_name); ++i)
+        fprintf(file, "pop rax\n");
+    fprintf(file, "ret\n");
+}
+
 /**
  * @brief Performs calculations on a node and writes the result to a file.
  * @param root The node to perform calculations on.
@@ -883,43 +1005,39 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
  * @param global_vars The symbol table for global variables.
  * @return The result of the calculation.
  */
-int do_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
+int do_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     switch(root->label){
         case Addsub:
-            addsub_calc(root, file, global_vars, functions, nb_functions);
+            addsub_calc(root, file, global_vars, functions, nb_functions, function_name);
             return 1;
         case Divstar:
-            divstar_calc(root, file, global_vars, functions, nb_functions);
+            divstar_calc(root, file, global_vars, functions, nb_functions, function_name);
             return 1;
         case Equals:
-            affectation_calc(root, file, global_vars, functions, nb_functions);
+            affectation_calc(root, file, global_vars, functions, nb_functions, function_name);
             return -1;
         case If:
             printf("If\n");
-            if_calc(root, file, global_vars, functions, nb_functions);
+            if_calc(root, file, global_vars, functions, nb_functions, function_name);
             printf("End If\n");
             return -1;
         case While:
-            while_calc(root, file, global_vars, functions, nb_functions);
+            while_calc(root, file, global_vars, functions, nb_functions, function_name);
             return -1;
         case Corps:
-            in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, global_vars, file, functions, nb_functions);
-            fprintf(file, "ret\n");
+            corps_calc(root, file, global_vars, functions, nb_functions, function_name);
             return 1;
         case Function:
             if(FIRSTCHILD(root)->label == Type || FIRSTCHILD(root)->label == Void){
-                for(int i = 0; i < nb_functions; ++i)
-                    if(!strcmp(SECONDCHILD(root)->ident, functions[i]->ident))
-                        change_offset(functions[i]);
-                fprintf(file, "%s:\n", SECONDCHILD(root)->ident);
+                enter_func_calc(root, file, functions, nb_functions, function_name);
                 return 0;
             }
             else{
-                function_calc(root, file, global_vars, functions, nb_functions);
+                function_calc(root, file, global_vars, functions, nb_functions, function_name);
                 return -1;
             }
         case Return:
-            return_calc(root, file, global_vars, functions, nb_functions);
+            return_calc(root, file, global_vars, functions, nb_functions, function_name);
             return 1;
         default:
             return 0;
@@ -1025,6 +1143,7 @@ void build_global_vars_asm(SymTabs *t, char *filename){
  * @param root The root node of the tree.
  */
 void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabsFct **functions, int nb_functions){
+    char *function_name = NULL;
     FILE * file = try(fopen(filename, "a"), NULL);
     fprintf(file, "extern _getchar\n");
     fprintf(file, "extern _getint\n");
@@ -1042,7 +1161,7 @@ void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabs
     fprintf(file, "mov rax, 60\n");
     fprintf(file,  "mov rdi, 0\n");
     fprintf(file, "syscall\n");
-    in_depth_course(root, do_calc, NULL, NULL, global_vars, file, functions, nb_functions);
+    in_depth_course(root, do_calc, NULL, NULL, global_vars, file, functions, nb_functions, function_name);
     try(fclose(file));
 }
 

@@ -1,0 +1,9 @@
+int main(void){
+    test(1, 'a');
+    return 0;
+}
+
+void test(int a, char b){
+    putint(a);
+    putchar(b);
+}
