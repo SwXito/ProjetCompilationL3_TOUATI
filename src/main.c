@@ -33,9 +33,11 @@ static void compile(int argc, char **argv){
     fill_global_vars(global_vars);
     build_global_vars_asm(global_vars, filename);
     functions = fill_decl_functions(nb_func, global_vars, filename);
+
+    semantic_check(global_vars, functions, nb_func);
+    
     build_asm(global_vars, functions, nb_func, filename);
     
-    semantic_check(global_vars, functions, nb_func);
     if(err == 0){
         parse_args(argc, argv, node, global_vars, functions, nb_func);
         deleteTree(node);

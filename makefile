@@ -40,7 +40,7 @@ $(OBJ)/$(EXEC).yy.c: $(SRC)/$(EXEC).lex | obj
 $(OBJ)/tree.o: $(SRC)/tree.c $(SRC)/tree.h | obj
 	$(CC) -o $@ -c $< $(CFLAGS)
 
-$(BIN)/$(ANONYMOUS): $(OBJ)/getchar.o $(OBJ)/putchar.o $(OBJ)/putint.o $(OBJ)/getint.o $(OBJ)/_anonymous.o $(OBJ)/utils.o
+$(BIN)/$(ANONYMOUS): $(OBJ)/getchar.o $(OBJ)/putchar.o $(OBJ)/putint.o $(OBJ)/getint.o $(OBJ)/_anonymous.o $(OBJ)/utils.o | bin
 	gcc -o $@ $^ -nostartfiles -no-pie
 
 $(OBJ)/%.o: %.asm | obj

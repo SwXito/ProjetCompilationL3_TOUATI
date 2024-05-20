@@ -1,6 +1,5 @@
 section .text
 extern _putchar
-extern show_registers
 global _putint
 _putint:
     mov rax, rdi ; On recupère n

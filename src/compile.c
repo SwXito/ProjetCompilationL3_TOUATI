@@ -555,23 +555,6 @@ static void character_calc(Node *root, FILE * file){
     fprintf(file, "push rax\n");
 }
 
-/**
- * @brief Performs calculations on an expression node and writes the result to a file.
- * @param root The node to perform calculations on.
- * @param file The file to write to.
- * @param global_vars The symbol table for global variables.
- */
-static void expression_calc(Node *root, FILE * file, SymTabs * global_vars, char *then_label, char *else_label, SymTabsFct **functions, int nb_functions){
-    switch(FIRSTCHILD(root)->label){
-        case Addsub:
-        case Divstar:
-            do_calc(FIRSTCHILD(root), file, global_vars, functions, nb_functions);
-            break;
-        default:
-            get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
-    }
-}
-
 int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_name){
     int params = 0;
     for(int i = 0; i < nb_functions; ++i)
@@ -609,6 +592,21 @@ static int get_function_type(char *function_name, SymTabsFct **functions, int nb
     exit(SEMANTIC_ERROR);
 }
 
+static void change_offset(SymTabsFct *function){
+    int offset = 0;
+    for(Table *current = function->parameters; current; current = current->next){
+        current->var.deplct = offset;
+        offset += current->var.is_int ? 4 : 1;
+    }
+    for(Table *current = function->variables; current; current = current->next){
+        current->var.deplct = offset;
+        offset += current->var.is_int ? (current->var.is_array ? current->var.size * 4 : 4) : (current->var.is_array ? current->var.size : 1);
+    }
+    printf("Function %s\n", function->ident);
+    print_table(function->parameters);
+    print_table(function->variables);
+}
+
 /**
  * @brief Performs calculations on a function node and writes the result to a file.
  * @param root The node to perform calculations on.
@@ -617,10 +615,10 @@ static int get_function_type(char *function_name, SymTabsFct **functions, int nb
  */
 static void function_calc(Node *root, FILE * file, SymTabs * global_vars, SymTabsFct **functions, int nb_functions){
     int args = get_params(root);
-    Node *tmp = FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)));
-    while(tmp && tmp->label != Void){
-        get_value(tmp, file, global_vars, NULL, NULL, functions, nb_functions);
-        tmp = tmp->nextSibling;
+    Node *params = FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root)));
+    while(params && params->label != Void){
+        get_value(params, file, global_vars, NULL, NULL, functions, nb_functions);
+        params = params->nextSibling;
     }
     fprintf(file, ";Function %s\n", FIRSTCHILD(root)->ident);
     /*fprintf(file, "mov r11, rsp\n");
@@ -694,13 +692,10 @@ static void manage_while(Node *root, FILE *file, SymTabs *global_vars, char *beg
     fprintf(file, "pop rax\n");
     fprintf(file, "cmp rax, 0\n");
     fprintf(file, "je %s\n", end_label);
-    switch(SECONDCHILD(root)->label){
-        case Instructions:
-            do_calc(FIRSTCHILD(SECONDCHILD(root)), file, global_vars, functions, nb_functions);
-            break;
-        default:
-            do_calc(SECONDCHILD(root), file, global_vars, functions, nb_functions);
-            break;
+    Node *current = FIRSTCHILD(SECONDCHILD(root));
+    while(current){
+        do_calc(current, file, global_vars, functions, nb_functions);
+        current = current->nextSibling;
     }
     fprintf(file, "jmp %s\n", begin_label);
     fprintf(file, "%s:\n", end_label);
@@ -843,9 +838,10 @@ static void negative_calc(Node *root, FILE *file, SymTabs *global_vars, char *th
 }
 
 static void return_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
-    get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
-    fprintf(file, "pop rax\n");
-    fprintf(file, "ret\n");
+    if(FIRSTCHILD(root)->label != Void){
+        get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions);
+        fprintf(file, "pop rax\n");
+    }
 }
 
 /**
@@ -866,7 +862,7 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
             character_calc(root, file);
             break;
         case Expression:
-            expression_calc(root, file, global_vars, then_label, else_label, functions, nb_functions);
+            get_value(FIRSTCHILD(root), file, global_vars, then_label, else_label, functions, nb_functions);
             break;
         case Function:
             function_calc(root, file, global_vars, functions, nb_functions);
@@ -885,6 +881,10 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
             break;
         case Not:
             negative_calc(root, file, global_vars, then_label, else_label, functions, nb_functions);
+            break;
+        case Addsub:
+        case Divstar:
+            do_calc(root, file, global_vars, functions, nb_functions);
             break;
         default:
             printf("Here\n");
@@ -920,12 +920,19 @@ int do_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **function
         case While:
             while_calc(root, file, global_vars, functions, nb_functions);
             return -1;
+        case Corps:
+            in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, global_vars, file, functions, nb_functions);
+            fprintf(file, "ret\n");
+            return 1;
         case Function:
-            if(FIRSTCHILD(root)->label == Type || FIRSTCHILD(root)->label == Void)
+            if(FIRSTCHILD(root)->label == Type || FIRSTCHILD(root)->label == Void){
                 fprintf(file, "%s:\n", SECONDCHILD(root)->ident);
-            else
+                return 0;
+            }
+            else{
                 function_calc(root, file, global_vars, functions, nb_functions);
-            return 0;
+                return -1;
+            }
         case Return:
             return_calc(root, file, global_vars, functions, nb_functions);
             return 1;
@@ -1129,6 +1136,8 @@ void print_table(Table *t){
         else
             printf("unknown\n");
         printf("Array: %s\n", t->var.is_array ? "yes" : "no"); ///< Print if the table is an array.
+        if(t->var.is_array)
+            printf("Size: %d\n", t->var.size); ///< Print the size of the table.
         printf("Displacement: %d\n", t->var.deplct); ///< Print the displacement of the table.
         printf("Line number: %d\n", t->var.lineno); ///< Print the line number of the table.
         printf("\n"); ///< Print a newline character.

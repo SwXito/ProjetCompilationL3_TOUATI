@@ -1,6 +1,5 @@
 section .text
 global _getint
-extern show_registers
 extern _getchar
 
 _getint:
