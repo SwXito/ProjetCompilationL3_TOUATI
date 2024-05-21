@@ -536,27 +536,27 @@ static int use_funct_params(Node *root, FILE * file, SymTabsFct **functions, int
         if(!strcmp(function_name, functions[i]->ident)){
             switch(get_arg_nb(functions[i]->parameters, (root->label == Array ? root->firstChild->ident : root->ident), functions, nb_functions, function_name)){
                 case 1:
-                    fprintf(file, "mov rax, [rsp]\n");
+                    fprintf(file, "mov rax, rdi\n");
                     fprintf(file, "push rax\n");
                     return 1;
                 case 2:
-                    fprintf(file, "mov rax, [rsp + 8]\n");
+                    fprintf(file, "mov rax, rsi\n");
                     fprintf(file, "push rax\n");
                     return 1;
                 case 3:
-                    fprintf(file, "mov rax, [rsp + 16]\n");
+                    fprintf(file, "mov rax, rdx\n");
                     fprintf(file, "push rax\n");
                     return 1;
                 case 4: 
-                    fprintf(file, "mov rax, [rsp + 24]\n");
+                    fprintf(file, "mov rax, rcx\n");
                     fprintf(file, "push rax\n");
                     return 1;
                 case 5:
-                    fprintf(file, "mov rax, [rsp + 32]\n");
+                    fprintf(file, "mov rax, r8\n");
                     fprintf(file, "push rax\n");
                     return 1;
                 case 6:
-                    fprintf(file, "mov rax, [rsp + 40]\n");
+                    fprintf(file, "mov rax, r9\n");
                     fprintf(file, "push rax\n");
                     return 1;
                 default:
@@ -579,7 +579,7 @@ static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymT
         offset = get_offset_functions(FIRSTCHILD(FIRSTCHILD(root)), functions, nb_functions, function_name, &type, &is_adress);
         if(offset > -1){
             fprintf(file, "pop rax\n");
-            fprintf(file, "mov %s [rsp + %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
+            fprintf(file, "mov %s [rbp - %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
         }
         else{
             fprintf(stderr, "Error: variable %s not found\n", FIRSTCHILD(FIRSTCHILD(root))->ident);
@@ -608,10 +608,10 @@ static void ident_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct
         offset = get_offset_functions(root, functions, nb_functions, function_name, &type, &is_adress);
         if(offset > -1){
             if(is_adress){
-                fprintf(file, "lea rax, [rsp + %d]\n", offset);
+                fprintf(file, "lea rax, [rbp - %d]\n", offset);
             }
             else{
-                fprintf(file, "movsx rax, %s [rsp + %d]\n", type == INT ? "dword" : "byte", offset);
+                fprintf(file, "movsx rax, %s [rbp - %d]\n", type == INT ? "dword" : "byte", offset);
             }
             fprintf(file, "push rax\n");
         }
@@ -687,14 +687,10 @@ static int get_var_table(Table *table){
 }
 
 static void change_offset(SymTabsFct *function){
-    int offset = (get_var_table(function->parameters) + get_var_table(function->variables)) * 8;
+    int offset = get_var_table(function->variables) * 8;
     for(Table *current = function->variables; current; current = current->next){
-        offset -= 8;
         current->var.deplct = offset;
-    }
-    for(Table *current = function->parameters; current; current = current->next){
         offset -= 8;
-        current->var.deplct = offset;
     }
 }
 
@@ -934,6 +930,9 @@ static void return_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct
         get_value(FIRSTCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
         fprintf(file, "pop rax\n");
     }
+    fprintf(file, "mov rsp, rbp\n");
+    fprintf(file, "pop rbp\n");
+    fprintf(file, "ret\n");
 }
 
 /**
@@ -946,9 +945,7 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
  char *else_label, SymTabsFct **functions, int nb_functions, char *function_name){
     switch(root->label){
         case Variable:
-            printf("Variable\n");
             ident_calc(FIRSTCHILD(root), file, global_vars, functions, nb_functions, function_name);
-            printf("End Variable\n");
             break;
         case Num:
             num_calc(root, file);
@@ -995,24 +992,9 @@ static void enter_func_calc(Node *root, FILE *file, SymTabsFct **functions, int 
     for(int i = 0; i < nb_functions; ++i)
         if(!strcmp(function_name, functions[i]->ident))
             change_offset(functions[i]);
-    switch(nb_params_function(functions, nb_functions, function_name)){
-        case 6:
-            fprintf(file, "push r9\n");
-        case 5:
-            fprintf(file, "push r8\n");
-        case 4:
-            fprintf(file, "push rcx\n");
-        case 3:
-            fprintf(file, "push rdx\n");
-        case 2:
-            fprintf(file, "push rsi\n");
-        case 1:
-            fprintf(file, "push rdi\n");
-        default:
-            for(int i = 0; i < nb_vars_function(functions, nb_functions, function_name); ++i)
-                fprintf(file, "push 0\n");
-            break;
-    }
+    fprintf(file, "push rbp\n");
+    fprintf(file, "mov rbp, rsp\n");
+    fprintf(file, "sub rsp, %d\n", nb_vars_function(functions, nb_functions, function_name) * 8);
 }
 
 int find_label_return(Node *root){
@@ -1025,12 +1007,13 @@ int find_label_return(Node *root){
 }
 
 static void corps_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    int ret = find_label_return(root);
     in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, global_vars, file, functions, nb_functions, function_name);
-    for(int i = 0; i < nb_params_function(functions, nb_functions, function_name); ++i)
-        fprintf(file, "pop rcx\n");
-    for(int i = 0; i < nb_vars_function(functions, nb_functions, function_name); ++i)
-        fprintf(file, "pop rcx\n");
-    fprintf(file, "ret\n");
+    if(!ret){
+        fprintf(file, "mov rsp, rbp\n");
+        fprintf(file, "pop rbp\n");
+        fprintf(file, "ret\n");
+    }
 }
 
 /**
@@ -1194,7 +1177,7 @@ void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabs
     fprintf(file, "call main\n");
     //fprintf(file, "pop rsp\n");
     fprintf(file, "mov rax, 60\n");
-    fprintf(file,  "mov rdi, rax\n");
+    fprintf(file,  "mov rdi, 0\n");
     fprintf(file, "syscall\n");
     in_depth_course(root, do_calc, NULL, NULL, global_vars, file, functions, nb_functions, function_name);
     try(fclose(file));

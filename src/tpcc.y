@@ -160,9 +160,9 @@ ListTypVar:
         tmp1->ident = strdup($3);
         Node * tmp2 = makeNode(Ident);
         tmp2->ident = strdup($4);
-        addChild(tmp1, tmp2);
-        addChild(arr, tmp1);
-        addSibling($$, arr);
+        addChild(tmp1, arr);
+        addChild(arr, tmp2);
+        addSibling($$, tmp1);
         }
     |  TYPE IDENT '[' ']' {
         $$ = makeNode(Type);

@@ -2,7 +2,7 @@ int main(void){
     //char string[10];
     int resultat;
     //string[0] = 'a';
-    resultat = caca() + caca();
+    resultat = caca(1, 3, 2) + caca(1, 1, 1);
     putint(resultat);
     //putchar(test(string));
     return 1;
@@ -12,9 +12,10 @@ char test(char str[]){
     return str[0];
 }
 
-int caca(void){
+int caca(int ok, int poulet, int enfant){
     int popo, oulala;
     int pipi;
-    pipi = 6;
+    oulala = 4;
+    pipi = ok + poulet + oulala - enfant;
     return pipi;
 }
