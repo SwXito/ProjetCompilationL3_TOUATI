@@ -312,49 +312,51 @@ static int is_array(Node *root, SymTabs *global_vars, SymTabsFct **functions, in
 
 
 static void check_args_affect(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name, char *call_func_name){
-    Node *tmp = root;
-    int count = 0;
-    static int is_array[6];
-    for(int i = 0; i < nb_functions; i++){
-        if(call_func_name && !strcmp(call_func_name, functions[i]->ident)){
-            for(Table *current = functions[i]->parameters; current; current = current->next){
-                if(current->var.is_array)
-                    is_array[count] = 1;
-                else
-                    is_array[count] = 0;
-                count++;
+    if(root && root->label != Void){
+        Node *tmp = root;
+        int count = 0;
+        static int is_array[6];
+        for(int i = 0; i < nb_functions; i++){
+            if(call_func_name && !strcmp(call_func_name, functions[i]->ident)){
+                for(Table *current = functions[i]->parameters; current; current = current->next){
+                    if(current->var.is_array)
+                        is_array[count] = 1;
+                    else
+                        is_array[count] = 0;
+                    count++;
+                }
             }
         }
-    }
-    count--;
-    while(tmp){
-        switch(FIRSTCHILD(tmp)->label){
-            case Variable:
-                for(int i = 0; i < nb_functions; i++){
-                    if(function_name && !strcmp(function_name, functions[i]->ident)){
-                        if(FIRSTCHILD(tmp)->firstChild->label == Ident && (is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, global_vars->first) == 1)){
-                            if(!is_array[count]){
-                                fprintf(stderr, "Error at line %d: can't acces to the array\n", FIRSTCHILD(tmp)->lineno);
-                                exit(SEMANTIC_ERROR);
+        count--;
+        while(tmp){
+            expression_type(tmp, global_vars, functions, nb_functions, function_name);
+            switch(FIRSTCHILD(tmp)->label){
+                case Variable:
+                    for(int i = 0; i < nb_functions; i++){
+                        if(function_name && !strcmp(function_name, functions[i]->ident)){
+                            if(FIRSTCHILD(tmp)->firstChild->label == Ident && (is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, global_vars->first) == 1)){
+                                if(!is_array[count]){
+                                    fprintf(stderr, "Error at line %d: can't acces to the array\n", FIRSTCHILD(tmp)->lineno);
+                                    exit(SEMANTIC_ERROR);
+                                }
                             }
                         }
                     }
-                }
-                break;
-            default:
-                break;
+                    break;
+                default:
+                    break;
+            }
+            count--;
+            tmp = tmp->nextSibling;
         }
-        count--;
-        tmp = tmp->nextSibling;
     }
-
 }
 
 static void check_function_call_args(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *call_func_name, char *function_name){
     if(root){
         int call_nb_params = 0, func_params = 0;
         Node *first_param = FIRSTCHILD(root);
-        //check_args_affect(first_param, global_vars, functions, nb_functions, function_name, call_func_name);
+        check_args_affect(first_param, global_vars, functions, nb_functions, function_name, call_func_name);
         while(first_param && first_param->label != Void){
             call_nb_params++;
             first_param = first_param->nextSibling;
