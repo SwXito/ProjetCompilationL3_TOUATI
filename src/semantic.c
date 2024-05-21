@@ -194,8 +194,9 @@ static void check_return_type(Node *root, int function_type, SymTabs *global_var
 static int check_function_name(SymTabsFct **functions, int nb_functions, char *function_name){
     int is_declared = 0;
     for(int i = 0; i < nb_functions; ++i)
-        if(check_in_table_fct(functions[i]->variables, function_name))
-            is_declared = 1;
+        if(!strcmp(functions[i]->ident, function_name))
+            if(check_in_table_fct(functions[i]->variables, function_name) || check_in_table_fct(functions[i]->parameters, function_name))
+                is_declared = 1;
     return is_declared;
 }
 

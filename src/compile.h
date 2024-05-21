@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include "try.h"
 #include "tree.h"
+#include "build.h"
 #include "../obj/tpcc.h"
 
 #define EXIT_ERROR 3

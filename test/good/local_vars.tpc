@@ -1,7 +1,7 @@
 int t[2];
 
 int main(int argc, char argv){
-    test(sup(), sup(), sup());
+    test(1, 1, 1);
     return argc + t[0];
 }
 

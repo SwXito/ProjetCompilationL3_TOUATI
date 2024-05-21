@@ -1170,16 +1170,12 @@ void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabs
     fprintf(file, "global _start\n");
     fprintf(file, "section .text\n");
     fprintf(file, "_start:\n");
-    /*fprintf(file, "mov r11, rsp\n");
-    fprintf(file, "sub rsp, 8\n");
-    fprintf(file, "and rsp, -16\n");
-    fprintf(file, "mov qword [rsp], r11\n");*/
     fprintf(file, "call main\n");
-    //fprintf(file, "pop rsp\n");
+    fprintf(file,  "mov rdi, rax\n");
     fprintf(file, "mov rax, 60\n");
-    fprintf(file,  "mov rdi, 0\n");
     fprintf(file, "syscall\n");
     in_depth_course(root, do_calc, NULL, NULL, global_vars, file, functions, nb_functions, function_name);
+    build_external_fcts(file);
     try(fclose(file));
 }
 

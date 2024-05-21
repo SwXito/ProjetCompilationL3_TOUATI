@@ -19,7 +19,7 @@ obj:
 	mkdir -p obj
 
 
-$(BIN)/$(EXEC): $(OBJ)/tree.o $(OBJ)/$(EXEC).o $(OBJ)/$(EXEC).yy.o $(OBJ)/compile.o $(OBJ)/parse.o $(OBJ)/semantic.o $(OBJ)/main.o | bin
+$(BIN)/$(EXEC): $(OBJ)/tree.o $(OBJ)/$(EXEC).o $(OBJ)/$(EXEC).yy.o $(OBJ)/compile.o $(OBJ)/parse.o $(OBJ)/semantic.o $(OBJ)/build.o $(OBJ)/main.o | bin
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 $(OBJ)/main.o: $(SRC)/main.c $(SRC)/compile.h | obj
@@ -40,7 +40,7 @@ $(OBJ)/$(EXEC).yy.c: $(SRC)/$(EXEC).lex | obj
 $(OBJ)/tree.o: $(SRC)/tree.c $(SRC)/tree.h | obj
 	$(CC) -o $@ -c $< $(CFLAGS)
 
-$(BIN)/$(ANONYMOUS): $(OBJ)/getchar.o $(OBJ)/putchar.o $(OBJ)/putint.o $(OBJ)/getint.o $(OBJ)/_anonymous.o $(OBJ)/utils.o | bin
+$(BIN)/$(ANONYMOUS): $(OBJ)/_anonymous.o $(OBJ)/utils.o | bin
 	gcc -o $@ $^ -nostartfiles -no-pie
 
 $(OBJ)/%.o: %.asm | obj
