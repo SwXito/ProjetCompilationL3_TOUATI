@@ -132,6 +132,10 @@ void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabs
 
 int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_name); ///< Function to get the number of parameters of a function.
 
+int find_label_return(Node *root); ///< Function to find the label of a return statement.
+
+int nb_vars_function(SymTabsFct **functions, int nb_functions, char *function_name); ///< Function to get the number of variables of a function.
+
 int expression_result(Node *root); ///< Function to get the result of an expression.
 
 void build_asm(SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *filename); ///< Function to build assembly code from the tree.

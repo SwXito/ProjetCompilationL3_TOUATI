@@ -531,32 +531,10 @@ static int get_arg_nb(Table *table, char *ident, SymTabsFct **functions, int nb_
     return nb;
 }
 
-static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
-    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
-    int offset = -1, type = 0;
-    offset = get_offset_global_vars(FIRSTCHILD(FIRSTCHILD(root)), global_vars, &type);
-    if(offset > -1){
-        fprintf(file, "pop rax\n");
-        fprintf(file, "mov %s [global_vars + %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
-    }
-    else{
-        int is_adress = 0;
-        offset = get_offset_functions(FIRSTCHILD(FIRSTCHILD(root)), functions, nb_functions, function_name, &type, &is_adress);
-        if(offset > -1){
-            fprintf(file, "pop rax\n");
-            fprintf(file, "mov %s [rbp - %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
-        }
-        else{
-            fprintf(stderr, "Error: variable %s not found\n", FIRSTCHILD(FIRSTCHILD(root))->ident);
-            exit(SEMANTIC_ERROR);
-        }
-    }
-}
-
 static int use_funct_params(Node *root, FILE * file, SymTabsFct **functions, int nb_functions, char *function_name){
     for(int i = 0; i < nb_functions; ++i)
-        if(!strcmp(function_name, functions[i]->ident))
-            switch(get_arg_nb(functions[i]->parameters, root->ident, functions, nb_functions, function_name)){
+        if(!strcmp(function_name, functions[i]->ident)){
+            switch(get_arg_nb(functions[i]->parameters, (root->label == Array ? root->firstChild->ident : root->ident), functions, nb_functions, function_name)){
                 case 1:
                     fprintf(file, "mov rax, [rsp]\n");
                     fprintf(file, "push rax\n");
@@ -584,7 +562,30 @@ static int use_funct_params(Node *root, FILE * file, SymTabsFct **functions, int
                 default:
                     return 0;
             }
+        }
     return 0;
+}
+
+static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    get_value(SECONDCHILD(root), file, global_vars, NULL, NULL, functions, nb_functions, function_name);
+    int offset = -1, type = 0;
+    offset = get_offset_global_vars(FIRSTCHILD(FIRSTCHILD(root)), global_vars, &type);
+    if(offset > -1){
+        fprintf(file, "pop rax\n");
+        fprintf(file, "mov %s [global_vars + %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
+    }
+    else{
+        int is_adress = 0;
+        offset = get_offset_functions(FIRSTCHILD(FIRSTCHILD(root)), functions, nb_functions, function_name, &type, &is_adress);
+        if(offset > -1){
+            fprintf(file, "pop rax\n");
+            fprintf(file, "mov %s [rsp + %d], %s\n", type == INT ? "dword" : "byte", offset, type == INT ? "eax" : "al");
+        }
+        else{
+            fprintf(stderr, "Error: variable %s not found\n", FIRSTCHILD(FIRSTCHILD(root))->ident);
+            exit(SEMANTIC_ERROR);
+        }
+    }
 }
 
 /**
@@ -607,10 +608,10 @@ static void ident_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct
         offset = get_offset_functions(root, functions, nb_functions, function_name, &type, &is_adress);
         if(offset > -1){
             if(is_adress){
-                fprintf(file, "lea rax, [rbp - %d]\n", offset);
+                fprintf(file, "lea rax, [rsp + %d]\n", offset);
             }
             else{
-                fprintf(file, "movsx rax, %s [rbp - %d]\n", type == INT ? "dword" : "byte", offset);
+                fprintf(file, "movsx rax, %s [rsp + %d]\n", type == INT ? "dword" : "byte", offset);
             }
             fprintf(file, "push rax\n");
         }
@@ -635,6 +636,19 @@ int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_
             for(Table *current = functions[i]->parameters; current; current = current->next)
                 params++;
     return params;
+}
+
+int nb_vars_function(SymTabsFct **functions, int nb_functions, char *function_name){
+    int vars = 0;
+    for(int i = 0; i < nb_functions; ++i)
+        if(!strcmp(function_name, functions[i]->ident))
+            for(Table *current = functions[i]->variables; current; current = current->next){
+                if(!current->var.is_array)
+                    vars++;
+                else
+                    vars += current->var.size;
+            }
+    return vars;
 }
 
 static int get_params(Node *root){
@@ -665,15 +679,22 @@ static int get_function_type(char *function_name, SymTabsFct **functions, int nb
     exit(SEMANTIC_ERROR);
 }
 
+static int get_var_table(Table *table){
+    int nb = 0;
+    for(Table *current = table; current; current = current->next)
+        nb++;
+    return nb;
+}
+
 static void change_offset(SymTabsFct *function){
-    int offset = 0;
-    for(Table *current = function->parameters; current; current = current->next){
-        current->var.deplct = offset;
-        offset += 8;
-    }
+    int offset = (get_var_table(function->parameters) + get_var_table(function->variables)) * 8;
     for(Table *current = function->variables; current; current = current->next){
+        offset -= 8;
         current->var.deplct = offset;
-        offset += 8;
+    }
+    for(Table *current = function->parameters; current; current = current->next){
+        offset -= 8;
+        current->var.deplct = offset;
     }
 }
 
@@ -925,7 +946,9 @@ void get_value(Node * root, FILE * file, SymTabs * global_vars, char *then_label
  char *else_label, SymTabsFct **functions, int nb_functions, char *function_name){
     switch(root->label){
         case Variable:
+            printf("Variable\n");
             ident_calc(FIRSTCHILD(root), file, global_vars, functions, nb_functions, function_name);
+            printf("End Variable\n");
             break;
         case Num:
             num_calc(root, file);
@@ -985,16 +1008,28 @@ static void enter_func_calc(Node *root, FILE *file, SymTabsFct **functions, int 
             fprintf(file, "push rsi\n");
         case 1:
             fprintf(file, "push rdi\n");
-            break;
         default:
+            for(int i = 0; i < nb_vars_function(functions, nb_functions, function_name); ++i)
+                fprintf(file, "push 0\n");
             break;
     }
+}
+
+int find_label_return(Node *root){
+    if(root){
+        if(root->label == Return)
+            return 1;
+        return find_label_return(FIRSTCHILD(root)) || find_label_return(root->nextSibling);
+    }
+    return 0;
 }
 
 static void corps_calc(Node *root, FILE *file, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     in_depth_course(FIRSTCHILD(root), do_calc, NULL, NULL, global_vars, file, functions, nb_functions, function_name);
     for(int i = 0; i < nb_params_function(functions, nb_functions, function_name); ++i)
-        fprintf(file, "pop rax\n");
+        fprintf(file, "pop rcx\n");
+    for(int i = 0; i < nb_vars_function(functions, nb_functions, function_name); ++i)
+        fprintf(file, "pop rcx\n");
     fprintf(file, "ret\n");
 }
 
@@ -1159,7 +1194,7 @@ void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabs
     fprintf(file, "call main\n");
     //fprintf(file, "pop rsp\n");
     fprintf(file, "mov rax, 60\n");
-    fprintf(file,  "mov rdi, 0\n");
+    fprintf(file,  "mov rdi, rax\n");
     fprintf(file, "syscall\n");
     in_depth_course(root, do_calc, NULL, NULL, global_vars, file, functions, nb_functions, function_name);
     try(fclose(file));

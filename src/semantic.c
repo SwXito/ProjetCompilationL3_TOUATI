@@ -314,15 +314,6 @@ static void check_function_call(Node *root, SymTabs *global_vars, SymTabsFct **f
     }
 }
 
-static int find_label_return(Node *root){
-    if(root){
-        if(root->label == Return)
-            return 1;
-        return find_label_return(FIRSTCHILD(root)) || find_label_return(root->nextSibling);
-    }
-    return 0;
-}
-
 static void check_functions(SymTabs *global_vars, SymTabsFct **functions, int nb_fcts, char **reserved_idents, int nb_reserved){
     Node *current = FIRSTCHILD(SECONDCHILD(node));
     int function_type; //-2 Unknown, -1 void, 0 for char, 1 for int
