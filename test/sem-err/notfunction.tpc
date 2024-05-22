@@ -1,0 +1,12 @@
+int f(void){
+    int f;
+    f = 0;
+    return f;
+}
+
+int main(void)
+{
+    int f;
+    f = f();
+    return f;
+}

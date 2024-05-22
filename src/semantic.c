@@ -191,11 +191,11 @@ static void check_return_type(Node *root, int function_type, SymTabs *global_var
     }
 }
 
-static int check_function_name(SymTabsFct **functions, int nb_functions, char *function_name){
+static int check_function_name(SymTabsFct **functions, int nb_functions, char *function_name, char *call_func_name){
     int is_declared = 0;
     for(int i = 0; i < nb_functions; ++i)
         if(!strcmp(functions[i]->ident, function_name))
-            if(check_in_table_fct(functions[i]->variables, function_name) || check_in_table_fct(functions[i]->parameters, function_name))
+            if(check_in_table_fct(functions[i]->variables, call_func_name) || check_in_table_fct(functions[i]->parameters, call_func_name))
                 is_declared = 1;
     return is_declared;
 }
@@ -209,10 +209,10 @@ static void check_idents(SymTabs *global_vars, SymTabsFct **functions, int nb_fu
     check_decl_in_fct(global_vars, functions, nb_functions, FIRSTCHILD(SECONDCHILD(node)), reserved_idents, nb_reserved, function_name);
     while(current){
         if(current->label == Function){
-            if(check_function_name(functions, nb_functions, SECONDCHILD(current)->ident)){
+            /*if(check_function_name(functions, nb_functions, SECONDCHILD(current)->ident)){
                 fprintf(stderr, "Error at line %d: function %s has the same name as a parameter\n", SECONDCHILD(current)->lineno, SECONDCHILD(current)->ident);
                 exit(SEMANTIC_ERROR);
-            }
+            }*/
             if(check_in_table(*global_vars, SECONDCHILD(current)->ident)){
                 fprintf(stderr, "Error at line %d: function %s has the same name as a global variable\n", SECONDCHILD(current)->lineno, SECONDCHILD(current)->ident);
                 exit(SEMANTIC_ERROR);
@@ -373,6 +373,10 @@ static void check_function_call_args(Node *root, SymTabs *global_vars, SymTabsFc
                 exit(SEMANTIC_ERROR);
             }
         }else{
+            if(check_function_name(functions, nb_functions, function_name, call_func_name)){
+                fprintf(stderr, "Error at line %d: function %s is not a function\n", root->lineno, call_func_name);
+                exit(SEMANTIC_ERROR);
+            }
             for(int i = 0; i < nb_functions; ++i){
                 if(call_func_name && !strcmp(call_func_name, functions[i]->ident)){
                     func_params = nb_params_function(functions, nb_functions, call_func_name);
