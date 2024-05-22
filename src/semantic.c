@@ -161,6 +161,13 @@ static void check_different_idents(Table *first, Table *second){
         }
 }
 
+static int is_ident_array_in_table(char *ident, Table *table){
+    for(Table *current = table; current; current = current->next)
+        if(!strcmp(ident, current->var.ident))
+            return current->var.is_array;
+    return -1;
+}
+
 static void check_return_type(Node *root, int function_type, SymTabs *global_vars, SymTabsFct **functions, int nb_fcts, char *function_name){
     if(root){
         if(root->label == Return){
@@ -168,6 +175,18 @@ static void check_return_type(Node *root, int function_type, SymTabs *global_var
             switch(root->firstChild->label){
                 case Expression:
                     return_type = expression_type(FIRSTCHILD(root), global_vars, functions, nb_fcts, function_name);
+                    if(FIRSTCHILD(root)->firstChild && FIRSTCHILD(root)->firstChild->label == Variable
+                     && FIRSTCHILD(FIRSTCHILD(root))->firstChild && FIRSTCHILD(FIRSTCHILD(root))->firstChild->label == Ident)
+                        for(int i = 0; i < nb_fcts; ++i)
+                            if(function_name && !strcmp(function_name, functions[i]->ident)){
+                                if(is_ident_array_in_table(FIRSTCHILD(FIRSTCHILD(root))->firstChild->ident, global_vars->first) < 1)
+                                    if(is_ident_array_in_table(FIRSTCHILD(FIRSTCHILD(root))->firstChild->ident, functions[i]->parameters) < 1)
+                                        if(is_ident_array_in_table(FIRSTCHILD(FIRSTCHILD(root))->firstChild->ident, functions[i]->variables) < 1)
+                                            break;
+                                fprintf(stderr, "Error at line %d: %s is an array\n", FIRSTCHILD(FIRSTCHILD(root))->lineno, FIRSTCHILD(FIRSTCHILD(root))->firstChild->ident);
+                                exit(SEMANTIC_ERROR);
+                            }
+
                     break;
                 default:
                     return_type = VOID;
@@ -262,13 +281,6 @@ static void check_existing_main(Node *root){
     }
 }
 
-static int is_ident_array_in_table(char *ident, Table *table){
-    for(Table *current = table; current; current = current->next)
-        if(!strcmp(ident, current->var.ident))
-            return current->var.is_array;
-    return -1;
-}
-
 static int is_array(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
     if(root){
         switch(root->label){
@@ -311,6 +323,53 @@ static int is_array(Node *root, SymTabs *global_vars, SymTabsFct **functions, in
     return 0;
 }
 
+static void comparing_args(Node *tmp, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name, int count, int *is_array){
+        while(tmp){
+        expression_type(tmp, global_vars, functions, nb_functions, function_name);
+        switch(FIRSTCHILD(tmp)->label){
+            case Variable:
+                for(int i = 0; i < nb_functions; i++){
+                    if(function_name && !strcmp(function_name, functions[i]->ident)){
+                        if(FIRSTCHILD(tmp)->firstChild->label == Ident){
+                            if(!is_array[count] && ((is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, global_vars->first) == 1) 
+                            || (is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, functions[i]->parameters) == 1) 
+                            || (is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, functions[i]->variables) == 1))){
+                                fprintf(stderr, "Error at line %d: can't acces to the array\n", FIRSTCHILD(tmp)->lineno);
+                                exit(SEMANTIC_ERROR);
+                            }
+                            if(is_array[count] && ((is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, global_vars->first) == 0) 
+                            || (is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, functions[i]->parameters) == 0) 
+                            || (is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, functions[i]->variables) == 0))){
+                                fprintf(stderr, "Error at line %d: need an array\n", FIRSTCHILD(tmp)->lineno);
+                                exit(SEMANTIC_ERROR);
+                            }
+                        }
+                        if(FIRSTCHILD(tmp)->firstChild->label == Array && is_array[count]){
+                            fprintf(stderr, "Error at line %d: need an array\n", FIRSTCHILD(tmp)->lineno);
+                            exit(SEMANTIC_ERROR);
+                        }
+                    }
+                }
+                break;
+            case Num:
+            case Character:
+                if(is_array[count]){
+                    fprintf(stderr, "Error at line %d: need an array\n", FIRSTCHILD(tmp)->lineno);
+                    exit(SEMANTIC_ERROR);
+                }
+                break;
+            default:
+                if(is_array[count]){
+                    fprintf(stderr, "Error at line %d: need an array\n", FIRSTCHILD(tmp)->lineno);
+                    exit(SEMANTIC_ERROR);
+                }
+                break;
+        }
+        count--;
+        tmp = tmp->nextSibling;
+    }
+}
+
 
 static void check_args_affect(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name, char *call_func_name){
     if(root && root->label != Void){
@@ -329,27 +388,7 @@ static void check_args_affect(Node *root, SymTabs *global_vars, SymTabsFct **fun
             }
         }
         count--;
-        while(tmp){
-            expression_type(tmp, global_vars, functions, nb_functions, function_name);
-            switch(FIRSTCHILD(tmp)->label){
-                case Variable:
-                    for(int i = 0; i < nb_functions; i++){
-                        if(function_name && !strcmp(function_name, functions[i]->ident)){
-                            if(FIRSTCHILD(tmp)->firstChild->label == Ident && (is_ident_array_in_table(FIRSTCHILD(tmp)->firstChild->ident, global_vars->first) == 1)){
-                                if(!is_array[count]){
-                                    fprintf(stderr, "Error at line %d: can't acces to the array\n", FIRSTCHILD(tmp)->lineno);
-                                    exit(SEMANTIC_ERROR);
-                                }
-                            }
-                        }
-                    }
-                    break;
-                default:
-                    break;
-            }
-            count--;
-            tmp = tmp->nextSibling;
-        }
+        comparing_args(tmp, global_vars, functions, nb_functions, function_name, count, is_array);
     }
 }
 

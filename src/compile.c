@@ -1163,10 +1163,6 @@ void build_global_vars_asm(SymTabs *t, char *filename){
 void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabsFct **functions, int nb_functions){
     char *function_name = NULL;
     FILE * file = try(fopen(filename, "a"), NULL);
-    fprintf(file, "extern _getchar\n");
-    fprintf(file, "extern _getint\n");
-    fprintf(file, "extern _putchar\n");
-    fprintf(file, "extern _putint\n");
     fprintf(file, "global _start\n");
     fprintf(file, "section .text\n");
     fprintf(file, "_start:\n");
