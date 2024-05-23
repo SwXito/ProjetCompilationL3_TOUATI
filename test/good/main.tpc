@@ -2,7 +2,7 @@ int impair(int n) {
     if (n == 0) {
         return 0;
     }
-    return pair(n - 1, 10000); // On émet un warning, une erreur sur le nombre de paramètres, où on appelle juste en respectant les conventions AMD64 ?
+    return pair(n - 1); // On émet un warning, une erreur sur le nombre de paramètres, où on appelle juste en respectant les conventions AMD64 ?
 }
 
 int pair(int n) {
@@ -15,6 +15,6 @@ int pair(int n) {
 int main(void) {
     int res1;
 
-    res1 = impair(17);
+    res1 = impair(18);
     putint(res1);
 }

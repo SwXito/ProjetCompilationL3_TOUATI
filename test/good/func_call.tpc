@@ -2,10 +2,10 @@ int main(void){
     //char string[10];
     int resultat;
     //string[0] = 'a';
-    resultat = caca(1, 3, 2) + caca(1, 1, 1);
+    resultat = caca(1, 0, 0) + caca(1, 0, 0);
     putint(resultat);
     //putchar(test(string));
-    return 1;
+    return 0;
 }
 
 char test(char str[]){

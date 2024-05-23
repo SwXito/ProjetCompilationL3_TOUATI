@@ -3,10 +3,10 @@ int x, y, z, tab[1], taille[20];
 char array[1];
 
 int main(void){
-    res = fibonnaci(4);
+    res = fibonnaci(6);
     taille[2] = 0;
     putint(res);
-    return res;
+    return 0;
 }
 
 int fibonnaci(int n){

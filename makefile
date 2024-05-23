@@ -40,7 +40,7 @@ $(OBJ)/$(EXEC).yy.c: $(SRC)/$(EXEC).lex | obj
 $(OBJ)/tree.o: $(SRC)/tree.c $(SRC)/tree.h | obj
 	$(CC) -o $@ -c $< $(CFLAGS)
 
-$(BIN)/$(ANONYMOUS): $(OBJ)/_anonymous.o $(OBJ)/utils.o | bin
+$(BIN)/$(ANONYMOUS): $(OBJ)/_anonymous.o | bin
 	gcc -o $@ $^ -nostartfiles -no-pie
 
 $(OBJ)/%.o: %.asm | obj

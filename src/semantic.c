@@ -161,13 +161,6 @@ static void check_different_idents(Table *first, Table *second){
         }
 }
 
-static int is_ident_array_in_table(char *ident, Table *table){
-    for(Table *current = table; current; current = current->next)
-        if(!strcmp(ident, current->var.ident))
-            return current->var.is_array;
-    return -1;
-}
-
 static void check_return_type(Node *root, int function_type, SymTabs *global_vars, SymTabsFct **functions, int nb_fcts, char *function_name){
     if(root){
         if(root->label == Return){
@@ -263,12 +256,33 @@ static int decl_function_type(Node *root){
     exit(SEMANTIC_ERROR);
 }
 
-static void check_existing_main(Node *root){
+static int find_return_type(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name){
+    if(root){
+        if(root->label == Return){
+            if(FIRSTCHILD(root) && (FIRSTCHILD(root)->label == Expression))
+                return expression_type(FIRSTCHILD(root), global_vars, functions, nb_functions, function_name);
+            return VOID;
+        }
+        return max(find_return_type(FIRSTCHILD(root), global_vars, functions, nb_functions, function_name),
+            find_return_type(root->nextSibling, global_vars, functions, nb_functions, function_name));
+    }
+    return VOID;
+}
+
+static void check_existing_main(Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions){
     int exist = 0;
     while(root){
         if(root->label == Function && !strcmp(SECONDCHILD(root)->ident, "main")){
             exist = 1;
             if(decl_function_type(root) != INT){
+                fprintf(stderr, "Error at line %d: main function must return an int\n", SECONDCHILD(root)->lineno);
+                exit(SEMANTIC_ERROR);
+            }
+            if(!find_label_return(FIRSTCHILD(FOURTHCHILD(root)))){
+                fprintf(stderr, "Error at line %d: main function must return a value\n", SECONDCHILD(root)->lineno);
+                exit(SEMANTIC_ERROR);
+            }
+            if(find_return_type(FIRSTCHILD(FOURTHCHILD(root)), global_vars, functions, nb_functions, SECONDCHILD(root)->ident) == VOID){
                 fprintf(stderr, "Error at line %d: main function must return an int\n", SECONDCHILD(root)->lineno);
                 exit(SEMANTIC_ERROR);
             }
@@ -462,7 +476,7 @@ static void check_function_call(Node *root, SymTabs *global_vars, SymTabsFct **f
 static void check_functions(SymTabs *global_vars, SymTabsFct **functions, int nb_fcts, char **reserved_idents, int nb_reserved){
     Node *current = FIRSTCHILD(SECONDCHILD(node));
     int function_type; //-2 Unknown, -1 void, 0 for char, 1 for int
-    check_existing_main(current);
+    check_existing_main(current, global_vars, functions, nb_fcts);
     while(current){
         if(current->label == Function){
             Node *corps = FOURTHCHILD(current);

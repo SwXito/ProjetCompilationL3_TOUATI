@@ -2,6 +2,8 @@
 
 static void build_getchar(FILE *file){
     fprintf(file, "_getchar:\n");
+    fprintf(file, "push rbp\n");
+    fprintf(file, "mov rbp, rsp\n");
     fprintf(file, "push 0 ; on initialise 1 octet sur la pile à 0\n");
     fprintf(file, "mov rax, 0 ; utilisé par syscall pour savoir qu'il faut lire\n");
     fprintf(file, "mov rdi, 0 ; fichier depuis lequelle on lit\n");
@@ -9,11 +11,15 @@ static void build_getchar(FILE *file){
     fprintf(file, "mov rdx, 1 ; nombre d'octets qu'on veut lire\n");
     fprintf(file, "syscall ; appel système\n");
     fprintf(file, "pop rax ; on récupére l'octets lu depuis la pile\n");
+    fprintf(file, "mov rsp, rbp\n");
+    fprintf(file, "pop rbp\n");
     fprintf(file, "ret\n");
 }
 
 static void build_getint(FILE *file){
-    fprintf(file, "_getint:\n") ;
+    fprintf(file, "_getint:\n");
+    fprintf(file, "push rbp\n");
+    fprintf(file, "mov rbp, rsp\n");
     fprintf(file, "mov r12, 0 ; on met 0 dans r12\n") ;
     fprintf(file, "mov r10, 1 ; on met 1 dans r10\n") ;
     fprintf(file, "mov r11, rsp\n") ;
@@ -22,8 +28,13 @@ static void build_getint(FILE *file){
     fprintf(file, "mov qword [rsp], r11\n") ;
     fprintf(file, "call _getchar ; on récupère un caractère\n") ;
     fprintf(file, "pop rsp\n") ;
+    fprintf(file, "cmp rax, 48\n");
+    fprintf(file, "jl end\n");
+    fprintf(file, "cmp rax, 57\n");
+    fprintf(file, "jg end\n");
     fprintf(file, "cmp rax, 45 ; on compare avec '-'\n") ;
     fprintf(file, "jne test_digit ; si c'est pas '-' on teste si c'est un chiffre\n") ;
+    fprintf(file, "back:\n");
     fprintf(file, "mov r10, -1 ; si c'est '-' on met -1 dans r10\n") ;
     fprintf(file, "read_digit:\n") ;
     fprintf(file, "mov r11, rsp\n") ;
@@ -44,24 +55,38 @@ static void build_getint(FILE *file){
     fprintf(file, "end_read_digit:\n") ;
     fprintf(file, "mov rax, r12 ; on met le résultat dans rax\n") ;
     fprintf(file, "imul rax, r10 ; on multiplie par -1 si besoin\n") ;
-    fprintf(file, "ret\n") ;
+    fprintf(file, "mov rsp, rbp\n");
+    fprintf(file, "pop rbp\n");
+    fprintf(file, "ret\n");
+    fprintf(file, "end:\n");
+    fprintf(file, "cmp rax, 45\n");
+    fprintf(file, "je back\n");
+    fprintf(file, "mov rdi, 5\n");
+    fprintf(file, "mov rax, 60\n");
+    fprintf(file, "syscall\n");
 }
 
 static void build_putchar(FILE *file){
     fprintf(file, "_putchar:\n");
-    fprintf(file, "push rdi\n");
+    fprintf(file, "push rbp\n");
+    fprintf(file, "mov rbp, rsp\n");
+    fprintf(file, "mov r12, rbp\n");
+    fprintf(file, "add r12, 16 ; On recupère le caractère à afficher\n");
     fprintf(file, "mov rax, 1\n");
     fprintf(file, "mov rdi, 1\n");
-    fprintf(file, "mov rsi, rsp\n");
+    fprintf(file, "mov rsi, r12\n");
     fprintf(file, "mov rdx, 1\n");
     fprintf(file, "syscall\n");
-    fprintf(file, "pop rax\n");
+    fprintf(file, "mov rsp, rbp\n");
+    fprintf(file, "pop rbp\n");
     fprintf(file, "ret\n");
 }
 
 static void build_putint(FILE *file){
     fprintf(file, "_putint:\n");
-    fprintf(file, "mov rax, rdi ; On recupère n\n");
+    fprintf(file, "push rbp\n");
+    fprintf(file, "mov rbp, rsp\n");
+    fprintf(file, "mov rax, [rbp + 16] ; On recupère n\n");
     fprintf(file, "cmp rax, 0 ; On compare n à 0\n");
     fprintf(file, "jge is_positive ; Si n est positif ou 0, sauter à is_positive\n");
     fprintf(file, "push rax ; On empile n\n");
@@ -95,6 +120,8 @@ static void build_putint(FILE *file){
     fprintf(file, "pop r12 ; On dépile le reste\n");
     fprintf(file, "cmp r10, 0\n");
     fprintf(file, "jne print_loop ; si i n'est pas 0, continuer la boucle\n");
+    fprintf(file, "mov rsp, rbp\n");
+    fprintf(file, "pop rbp\n");
     fprintf(file, "ret\n");
 }
 

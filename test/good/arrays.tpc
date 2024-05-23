@@ -1,0 +1,25 @@
+
+
+int main(void){
+    int array[10];
+    int i;
+    i = 0;
+    while(i < 10){
+        array[i] = i;
+        i = i + 1;
+    }
+    test(array);
+    array[0] = 2;
+    i = array[0];
+    putint(i);
+    return 0;
+}
+
+void test(int a[]){
+    int i;
+    i = 0;
+    while(i < 10){
+        putint(a[i]);
+        i = i + 1;
+    }
+}

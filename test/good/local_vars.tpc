@@ -4,12 +4,12 @@ int main(int argc, char argv[]){
     int z;
     char s;
     int c[1];
-    test(s, c, 1);
-    return sup();
+    test(s);
+    return 0;
 }
 
-int test(int c, int tab[], int a){
-    return 1;
+int test(int x){
+    return 1 - 'a';
 }
 
 int sup(void){

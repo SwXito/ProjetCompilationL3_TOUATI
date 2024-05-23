@@ -129,7 +129,11 @@ void print_global_vars(SymTabs *t); ///< Function to print the global variables.
 
 void print_functions(SymTabsFct **t, int nb_functions); ///< Function to print the declared functions.
 
-void build_minimal_asm(Node *root, SymTabs *global_vars, char *filename, SymTabsFct **functions, int nb_functions); ///< Function to build minimal assembly code from the tree.
+int max(int a, int b); ///< Function to get the maximum of two integers.
+
+int is_ident_array_in_table(char *ident, Table *table); ///< Function to check if an identifier is an array in the table.
+
+void build_minimal_asm(FILE *file, Node *root, SymTabs *global_vars, SymTabsFct **functions, int nb_functions); ///< Function to build minimal assembly code from the tree.
 
 int nb_params_function(SymTabsFct **functions, int nb_functions, char *function_name); ///< Function to get the number of parameters of a function.
 
