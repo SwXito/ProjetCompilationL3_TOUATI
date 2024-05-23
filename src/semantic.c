@@ -323,11 +323,12 @@ static int is_array(Node *root, SymTabs *global_vars, SymTabsFct **functions, in
     return 0;
 }
 
-static void comparing_args(Node *tmp, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name, int count, int *is_array){
+static void comparing_args(Node *tmp, SymTabs *global_vars, SymTabsFct **functions, int nb_functions, char *function_name, int count, int *is_array, int *is_int){
         while(tmp){
         expression_type(tmp, global_vars, functions, nb_functions, function_name);
         switch(FIRSTCHILD(tmp)->label){
-            case Variable:
+            case Variable:;
+                int type;
                 for(int i = 0; i < nb_functions; i++){
                     if(function_name && !strcmp(function_name, functions[i]->ident)){
                         if(FIRSTCHILD(tmp)->firstChild->label == Ident){
@@ -343,19 +344,22 @@ static void comparing_args(Node *tmp, SymTabs *global_vars, SymTabsFct **functio
                                 fprintf(stderr, "Error at line %d: need an array\n", FIRSTCHILD(tmp)->lineno);
                                 exit(SEMANTIC_ERROR);
                             }
+                            if(is_array[count]){
+                                if((type = find_type_in_fct(FIRSTCHILD(tmp)->firstChild->ident, functions[i])) < 0)
+                                    type = find_type_in_sb(FIRSTCHILD(tmp)->firstChild->ident, global_vars);
+                                if(type != is_int[count]){
+                                    fprintf(stderr, "Error at line %d: type mismatch\n", FIRSTCHILD(tmp)->lineno);
+                                    exit(SEMANTIC_ERROR);
+                                }
+                            }
                         }
-                        if(FIRSTCHILD(tmp)->firstChild->label == Array && is_array[count]){
-                            fprintf(stderr, "Error at line %d: need an array\n", FIRSTCHILD(tmp)->lineno);
-                            exit(SEMANTIC_ERROR);
+                        if(FIRSTCHILD(tmp)->firstChild->label == Array){
+                            if(is_array[count]){
+                                fprintf(stderr, "Error at line %d: need an array\n", FIRSTCHILD(tmp)->lineno);
+                                exit(SEMANTIC_ERROR);
+                            }
                         }
                     }
-                }
-                break;
-            case Num:
-            case Character:
-                if(is_array[count]){
-                    fprintf(stderr, "Error at line %d: need an array\n", FIRSTCHILD(tmp)->lineno);
-                    exit(SEMANTIC_ERROR);
                 }
                 break;
             default:
@@ -376,19 +380,23 @@ static void check_args_affect(Node *root, SymTabs *global_vars, SymTabsFct **fun
         Node *tmp = root;
         int count = 0;
         static int is_array[6];
+        static int is_int[6];
         for(int i = 0; i < nb_functions; i++){
             if(call_func_name && !strcmp(call_func_name, functions[i]->ident)){
                 for(Table *current = functions[i]->parameters; current; current = current->next){
-                    if(current->var.is_array)
+                    if(current->var.is_array){
                         is_array[count] = 1;
-                    else
+                    }
+                    else{
                         is_array[count] = 0;
+                    }
+                    is_int[count] = current->var.is_int;
                     count++;
                 }
             }
         }
         count--;
-        comparing_args(tmp, global_vars, functions, nb_functions, function_name, count, is_array);
+        comparing_args(tmp, global_vars, functions, nb_functions, function_name, count, is_array, is_int);
     }
 }
 

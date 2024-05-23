@@ -1,13 +1,15 @@
 int t[2];
 
-int main(int argc, char argv){
-    int c;
-    test(argc, t, 1);
-    return argc + t[0];
+int main(int argc, char argv[]){
+    int z;
+    char s;
+    int c[1];
+    test(s, c, 1);
+    return sup();
 }
 
 int test(int c, int tab[], int a){
-    return test(c, tab, a);
+    return 1;
 }
 
 int sup(void){
