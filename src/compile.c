@@ -472,8 +472,6 @@ static int get_offset_global_vars(Node *root, SymTabs *global_vars, int *type, F
     for(Table *current = global_vars->first; current; current = current->next){
         switch(root->label){
             case Array:
-                //get_value(FIRSTCHILD(FIRSTCHILD(root)), file, global_vars, NULL, NULL, functions,
-                 //   nb_functions, function_name);
                 if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
                     offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
                     size = current->var.is_int ? 4 : 1;
@@ -569,7 +567,7 @@ static int use_funct_params(Node *root, FILE * file, SymTabsFct **functions, int
 }
 
 static int use_funct_vars(Node *root, FILE * file, SymTabsFct **functions, int nb_functions, char *function_name,
-    int is_adress){
+    int is_adress, SymTabs *global_vars){
     char *var_name = root->label == Array ? FIRSTCHILD(root)->ident : root->ident;
     for(int i = 0; i < nb_functions; ++i)
         if(!strcmp(function_name, functions[i]->ident)){
@@ -578,7 +576,7 @@ static int use_funct_vars(Node *root, FILE * file, SymTabsFct **functions, int n
                     if(!is_adress)
                     {
                         if(root->label == Array){
-                            get_value(FIRSTCHILD(FIRSTCHILD(root)), file, NULL, NULL, NULL, functions, nb_functions,
+                            get_value(FIRSTCHILD(FIRSTCHILD(root)), file, global_vars, NULL, NULL, functions, nb_functions,
                                 function_name);
                             fprintf(file, "pop rcx\n");
                             fprintf(file, "mov rax, [rbp - %d + 8 * rcx]\n", current->var.deplct);
@@ -638,13 +636,11 @@ static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymT
                 fprintf(file, "pop rax\n");
                 fprintf(file, "pop rcx\n");
                 fprintf(file, "mov r12, [rbp + %d]\n", offset);
-                fprintf(file, "mov %s [r12 + rax * 8], %s\n", type == INT ? "dword" : "byte",
-                    type == INT ? "ecx" : "cl");
+                fprintf(file, "mov [r12 + rax * 8], rcx\n");
             }
             else{
                 fprintf(file, "pop rax\n");
-                fprintf(file, "mov %s [rbp + %d], %s\n", type == INT ? "dword" : "byte", offset,
-                type == INT ? "eax" : "al");
+                fprintf(file, "mov [rbp + %d], rax\n", offset);
             }
         }
         else{
@@ -656,13 +652,11 @@ static void affectation_calc(Node *root, FILE * file, SymTabs *global_vars, SymT
                         NULL, functions,nb_functions, function_name);
                     fprintf(file, "pop rax\n");
                     fprintf(file, "pop rcx\n");
-                    fprintf(file, "mov %s [rbp - %d + rax * 8], %s\n", type == INT ? "dword" : "byte", offset,
-                        type == INT ? "ecx" : "cl");
+                    fprintf(file, "mov [rbp - %d + rax * 8], rcx\n", offset);
                 }
                 else{
                     fprintf(file, "pop rax\n");
-                    fprintf(file, "mov %s [rbp - %d], %s\n", type == INT ? "dword" : "byte", offset,
-                    type == INT ? "eax" : "al");
+                    fprintf(file, "mov [rbp - %d], rax\n", offset);
                 }
             }
         }
@@ -713,7 +707,7 @@ static void ident_calc(Node *root, FILE * file, SymTabs *global_vars, SymTabsFct
         if(use_funct_params(root, file, functions, nb_functions, function_name, global_vars))
             return;
         is_adress = !is_array && (is_ident_array_in_table(root->ident, functions[0]->variables) == 1);
-        use_funct_vars(root, file, functions, nb_functions, function_name, is_adress);
+        use_funct_vars(root, file, functions, nb_functions, function_name, is_adress, global_vars);
     }
     printf("Exiting ident_calc\n");
 }
@@ -777,10 +771,10 @@ static void change_offset(SymTabsFct *function){
     int offset_vars = 8 * get_var_table(function->variables);
     for(Table *current = function->variables; current; current = current->next){
         current->var.deplct = offset_vars;
-        offset_vars -= 8;
+        offset_vars -= 8 * (current->var.is_array ? current->var.size : 1);
     }
     for(Table *current = function->parameters; current; current = current->next){
-        offset_params += 8;
+        offset_params += 8 * (current->var.is_array ? current->var.size : 1);
         current->var.deplct = offset_params;
     }
 }

@@ -1,25 +1,28 @@
-
+int zeubi[5];
 
 int main(void){
-    int array[10];
     int i;
+    int array[5];
+    char reverse[5];
     i = 0;
-    while(i < 10){
-        array[i] = i;
+    reverse[0] = 'a';
+    reverse[1] = 'b';
+    reverse[2] = 'c';
+    reverse[3] = 'd';
+    reverse[4] = 'e';
+    test(zeubi, reverse);
+    while(i < 5){
+        putchar(reverse[i]);
+        putint(zeubi[i]);
         i = i + 1;
     }
-    test(array);
-    array[0] = 2;
-    i = array[0];
-    putint(i);
     return 0;
 }
 
-void test(int a[]){
-    int i;
-    i = 0;
-    while(i < 10){
-        putint(a[i]);
-        i = i + 1;
-    }
+void test(int a[], char b[]){
+    a[4] = b[0];
+    a[3] = b[1];
+    a[2] = b[2];
+    a[1] = b[3];
+    a[0] = b[4];
 }

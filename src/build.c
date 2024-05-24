@@ -90,13 +90,9 @@ static void build_putint(FILE *file){
     fprintf(file, "cmp rax, 0 ; On compare n à 0\n");
     fprintf(file, "jge is_positive ; Si n est positif ou 0, sauter à is_positive\n");
     fprintf(file, "push rax ; On empile n\n");
-    fprintf(file, "mov rdi, '-' ; On met le signe moins dans rdi\n");
-    fprintf(file, "mov r11, rsp\n");
-    fprintf(file, "sub rsp, 8\n");
-    fprintf(file, "and rsp, -16\n");
-    fprintf(file, "mov qword [rsp], r11\n");
+    fprintf(file, "push '-' ; On empile le signe moins\n");
     fprintf(file, "call _putchar ; On affiche le signe moins\n");
-    fprintf(file, "pop rsp\n");
+    fprintf(file, "add rsp, 8 ; On dépile le signe moins\n");
     fprintf(file, "pop rax ; On dépile n\n");
     fprintf(file, "neg rax ; rendre n positif\n");
     fprintf(file, "is_positive:\n");
