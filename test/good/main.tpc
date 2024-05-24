@@ -17,4 +17,5 @@ int main(void) {
 
     res1 = impair(18);
     putint(res1);
+    return 0;
 }

@@ -278,14 +278,6 @@ static void check_existing_main(Node *root, SymTabs *global_vars, SymTabsFct **f
                 fprintf(stderr, "Error at line %d: main function must return an int\n", SECONDCHILD(root)->lineno);
                 exit(SEMANTIC_ERROR);
             }
-            if(!find_label_return(FIRSTCHILD(FOURTHCHILD(root)))){
-                fprintf(stderr, "Error at line %d: main function must return a value\n", SECONDCHILD(root)->lineno);
-                exit(SEMANTIC_ERROR);
-            }
-            if(find_return_type(FIRSTCHILD(FOURTHCHILD(root)), global_vars, functions, nb_functions, SECONDCHILD(root)->ident) == VOID){
-                fprintf(stderr, "Error at line %d: main function must return an int\n", SECONDCHILD(root)->lineno);
-                exit(SEMANTIC_ERROR);
-            }
         }
         root = root->nextSibling;
     }

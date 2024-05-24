@@ -492,28 +492,24 @@ static int get_offset_global_vars(Node *root, SymTabs *global_vars, int *type, F
     return offset + size * array_offset;
 }
 
-static int get_offset_table(Node *root, Table *table, int *type, FILE *file, SymTabsFct **functions, int nb_functions,
-    char *function_name, SymTabs *global_vars){
-    int offset = -1, size = 0, array_offset = 0;
+static int get_offset_table(Node *root, Table *table, int *type){
+    int offset = -1;
     for(Table *current = table; current; current = current->next){
         switch(root->label){
         case Array:
                 if(!strcmp(current->var.ident, FIRSTCHILD(root)->ident)){
-                    offset = current->var.deplct + FIRSTCHILD(root)->num * (current->var.is_int ? 4 : 1);
-                    size = current->var.is_int ? 4 : 1;
+                    offset = current->var.deplct;
                     *type = current->var.is_int;
-                    array_offset = expression_result(FIRSTCHILD(FIRSTCHILD(FIRSTCHILD(root))));
                 }
                 break;
             default:
                 if(!strcmp(current->var.ident, root->ident)){
                     offset = current->var.deplct;
                     *type = current->var.is_int;
-                    size = current->var.is_int ? 4 : 1;
                 }
         }
     }
-    return offset + size * array_offset;
+    return offset;
 }
 
 static int get_offset_functions_vars(Node *root, SymTabsFct **functions, int nb_functions, char *function_name,
@@ -521,7 +517,7 @@ static int get_offset_functions_vars(Node *root, SymTabsFct **functions, int nb_
     int offset = -1;
     for(int i = 0; i < nb_functions; ++i)
         if(function_name && !strcmp(functions[i]->ident, function_name))
-            return get_offset_table(root, functions[i]->variables, type, file, functions, nb_functions, function_name, global_vars);
+            return get_offset_table(root, functions[i]->variables, type);
     return offset;
 }
 
@@ -530,7 +526,7 @@ static int get_offset_functions_params(Node *root, SymTabsFct **functions, int n
     int offset = -1;
     for(int i = 0; i < nb_functions; ++i)
         if(function_name && !strcmp(functions[i]->ident, function_name))
-            return get_offset_table(root, functions[i]->parameters, type, file, functions, nb_functions, function_name, global_vars);
+            return get_offset_table(root, functions[i]->parameters, type);
     return offset;
 }
 
@@ -581,14 +577,20 @@ static int use_funct_vars(Node *root, FILE * file, SymTabsFct **functions, int n
                 if(!strcmp(current->var.ident, var_name)){
                     if(!is_adress)
                     {
-                        fprintf(file, "mov rax, [rbp - %d]\n", current->var.deplct);
-                        fprintf(file, "push rax\n");
                         if(root->label == Array){
+                            get_value(FIRSTCHILD(FIRSTCHILD(root)), file, NULL, NULL, NULL, functions, nb_functions,
+                                function_name);
+                            fprintf(file, "pop rcx\n");
+                            fprintf(file, "mov rax, [rbp - %d + 8 * rcx]\n", current->var.deplct);
+                            fprintf(file, "push rax\n");
                             fprintf(file, "pop rcx\n");
                             fprintf(file, "mov %s, %s\n", current->var.is_int ? "eax" : "al",
                                 current->var.is_int ? "ecx" : "cl");
-                            fprintf(file, "push rax\n");
                         }
+                        else{
+                            fprintf(file, "mov rax, [rbp - %d]\n", current->var.deplct);
+                        }
+                            fprintf(file, "push rax\n");
                     }
                     else
                     {
